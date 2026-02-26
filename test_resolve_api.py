@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import resolve_api
 
@@ -122,6 +122,66 @@ class TestSetKeywords(unittest.TestCase):
         item.SetMetadata.return_value = True
         resolve_api.set_keywords(item, [])
         item.SetMetadata.assert_called_once_with("Keywords", "")
+
+
+class TestThumbnailFromFilePath(unittest.TestCase):
+    def _run(self, ffprobe_stdout=b"10.0", ffprobe_rc=0, ffmpeg_stdout=b"PNG", ffmpeg_rc=0):
+        """Run thumbnail_from_file_path with mocked subprocesses."""
+        with patch("resolve_api._ffmpeg_path", return_value="/usr/bin/ffmpeg"), \
+             patch("resolve_api._ffprobe_path", return_value="/usr/bin/ffprobe"), \
+             patch("resolve_api.subprocess") as mock_sub:
+
+            probe_result = MagicMock()
+            probe_result.returncode = ffprobe_rc
+            probe_result.stdout = ffprobe_stdout
+
+            ffmpeg_result = MagicMock()
+            ffmpeg_result.returncode = ffmpeg_rc
+            ffmpeg_result.stdout = ffmpeg_stdout
+
+            mock_sub.run.side_effect = [probe_result, ffmpeg_result]
+
+            return mock_sub, resolve_api.thumbnail_from_file_path("/fake/clip.mov")
+
+    def test_returns_png_bytes_on_success(self):
+        _, result = self._run()
+        self.assertEqual(result, b"PNG")
+
+    def test_returns_none_when_ffmpeg_fails(self):
+        _, result = self._run(ffmpeg_rc=1, ffmpeg_stdout=b"")
+        self.assertIsNone(result)
+
+    def test_returns_none_when_ffmpeg_returns_empty_output(self):
+        _, result = self._run(ffmpeg_stdout=b"")
+        self.assertIsNone(result)
+
+    def test_returns_none_when_file_path_is_empty(self):
+        result = resolve_api.thumbnail_from_file_path("")
+        self.assertIsNone(result)
+
+    def test_returns_none_when_ffmpeg_not_found(self):
+        with patch("resolve_api._ffmpeg_path", side_effect=FileNotFoundError):
+            result = resolve_api.thumbnail_from_file_path("/fake/clip.mov")
+        self.assertIsNone(result)
+
+    def test_seeks_to_midpoint(self):
+        mock_sub, _ = self._run(ffprobe_stdout=b"20.0")
+        ffmpeg_call_args = mock_sub.run.call_args_list[1][0][0]
+        self.assertIn("10.0", ffmpeg_call_args)
+
+    def test_seeks_to_zero_when_probe_fails(self):
+        mock_sub, _ = self._run(ffprobe_rc=1, ffprobe_stdout=b"")
+        ffmpeg_call_args = mock_sub.run.call_args_list[1][0][0]
+        self.assertIn("0.0", ffmpeg_call_args)
+
+    def test_returns_none_when_subprocess_raises(self):
+        with patch("resolve_api._ffmpeg_path", return_value="/usr/bin/ffmpeg"), \
+             patch("resolve_api._ffprobe_path", return_value="/usr/bin/ffprobe"), \
+             patch("resolve_api.subprocess") as mock_sub:
+            mock_sub.run.side_effect = [MagicMock(returncode=0, stdout=b"5.0"),
+                                        Exception("process error")]
+            result = resolve_api.thumbnail_from_file_path("/fake/clip.mov")
+        self.assertIsNone(result)
 
 
 if __name__ == "__main__":

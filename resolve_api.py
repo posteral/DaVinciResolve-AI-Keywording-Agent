@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 import sys
 import os
 from pathlib import Path
@@ -178,8 +179,6 @@ def _ffprobe_path() -> str:
 
 def thumbnail_from_file_path(file_path: str) -> bytes | None:
     """Extract a mid-point frame from a media file via ffmpeg. No Resolve IPC."""
-    import subprocess
-
     try:
         ffmpeg = _ffmpeg_path()
         ffprobe = _ffprobe_path()
