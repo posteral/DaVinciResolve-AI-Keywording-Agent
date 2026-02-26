@@ -3,6 +3,7 @@ from __future__ import annotations
 import subprocess
 import sys
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -153,6 +154,72 @@ def set_keywords(media_pool_item: Any, keywords: list[str]) -> bool:
     joined = ", ".join(keywords)
     result = media_pool_item.SetMetadata("Keywords", joined)
     return result is True
+
+
+_DATE_FORMATS = (
+    "%m/%d/%Y %H:%M:%S",
+    "%Y-%m-%d %H:%M:%S",
+    "%d/%m/%Y %H:%M:%S",
+)
+
+
+def _clip_date_key(clip: Any) -> tuple:
+    """Return a sort key for a clip based on its Date Created property.
+
+    Returns a (datetime, name) tuple so clips with the same timestamp are
+    broken by name, matching the secondary sort Resolve uses in the UI."""
+    raw = ""
+    try:
+        raw = clip.GetClipProperty("Date Created") or ""
+        for fmt in _DATE_FORMATS:
+            try:
+                return (datetime.strptime(raw.strip(), fmt), clip.GetName() or "")
+            except ValueError:
+                continue
+    except Exception:
+        pass
+    # Fall back: sort unknown dates to the end, then by name.
+    return (datetime.max, clip.GetName() or "")
+
+
+def navigate_clip(resolve: Any, direction: int) -> Any | None:
+    """Select the next (+1) or previous (-1) clip in the current Media Pool
+    folder, ordered by Date Created (matching Resolve's default UI sort).
+    Returns the newly selected MediaPoolItem, or None if at boundary."""
+    project_manager = resolve.GetProjectManager()
+    if project_manager is None:
+        return None
+    project = project_manager.GetCurrentProject()
+    if project is None:
+        return None
+    media_pool = project.GetMediaPool()
+    if media_pool is None:
+        return None
+
+    current_item = get_selected_media_pool_item(resolve)
+    if current_item is None:
+        return None
+
+    folder = media_pool.GetCurrentFolder()
+    if folder is None:
+        return None
+
+    clips = sorted(_as_sequence(folder.GetClipList()), key=_clip_date_key)
+    if not clips:
+        return None
+
+    current_id = current_item.GetMediaId()
+    indices = [i for i, c in enumerate(clips) if c.GetMediaId() == current_id]
+    if not indices:
+        return None
+
+    new_index = indices[0] + direction
+    if new_index < 0 or new_index >= len(clips):
+        return None  # already at boundary
+
+    new_item = clips[new_index]
+    media_pool.SetSelectedClip(new_item)
+    return new_item
 
 
 def _ffmpeg_path() -> str:

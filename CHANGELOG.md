@@ -4,6 +4,24 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-02-26
+
+### Added
+
+- Prev / Next buttons in the web UI for navigating between clips in the
+  current Media Pool folder without touching Resolve.
+- `navigate_clip(resolve, direction)` added to `resolve_api.py`; uses
+  `MediaPool.GetCurrentFolder()`, `Folder.GetClipList()`, and
+  `MediaPool.SetSelectedClip()` to move to the adjacent clip by index.
+- `POST /api/clip/navigate` — accepts `{"direction": "next"|"prev"}`;
+  returns the new clip name and keywords (200), or `{"error": "No more
+  clips"}` (404) when already at a boundary.
+- Nav buttons are hidden on initial load and revealed after the first
+  successful Refresh. They are disabled for the duration of the request
+  to prevent double-clicks.
+- A brief "No more clips" flash message is shown (and then cleared) when
+  navigating past the boundary instead of a persistent error box.
+
 ## [0.4.1] - 2026-02-26
 
 ### Added
