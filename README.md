@@ -5,106 +5,9 @@ Python agent for reading and writing keyword metadata on clips in DaVinci Resolv
 ## Current Status
 
 - `v0.3` is the current release.
-- Includes a browser-based UI (`app.py`) with keyword removal and a full CLI (`main.py`) with read/write support.
+- Browser-based UI (`app.py`) for reading and editing keywords on the selected clip.
 
-## v0 (Implemented)
-
-### What It Does
-
-- Connects to an open DaVinci Resolve instance through the official scripting API.
-- Finds the selected clip from the current timeline video item first.
-- Falls back to the Media Pool selection if needed.
-- Reads keyword metadata from the clip.
-- Prints the clip name and keyword list, or `(none)` when empty.
-
-### Requirements
-
-- Python 3.10+
-- DaVinci Resolve installed
-- DaVinci Resolve running
-- External scripting enabled in Resolve
-
-### Run
-
-```bash
-python3 main.py
-```
-
-### Example Output
-
-```text
-Clip: A001_C003_0215AB
-Keywords:
-- interview
-- city
-- night
-```
-
-If no keywords are set:
-
-```text
-Clip: A001_C003_0215AB
-Keywords: (none)
-```
-
-If no clip is selected:
-
-```text
-ERROR: No selected clip found. Select a clip in the timeline (or media pool) and run again.
-```
-
-## v0.1 (Implemented)
-
-Goal: move from read-only to safe metadata updates for the selected clip.
-
-### CLI Modes
-
-```bash
-# Read keywords (default)
-python3 main.py
-
-# Set keywords, replacing all existing
-python3 main.py --set "interview, city, night"
-
-# Append keywords to existing ones
-python3 main.py --append "extra, tag"
-
-# Replace all keywords (alias for --set)
-python3 main.py --replace "final"
-
-# Preview what would be written without writing
-python3 main.py --set "a, b" --dry-run
-
-# Machine-readable JSON output
-python3 main.py --json
-python3 main.py --set "a, b" --dry-run --json
-```
-
-### Keyword Policy
-
-- Keywords are deduplicated case-insensitively; first occurrence wins.
-- `--append` preserves existing keywords and adds new ones.
-- `--set` / `--replace` discard existing keywords and set new ones.
-- `--dry-run` shows the result without writing anything to Resolve.
-
-### Tests
-
-```bash
-python3 -m unittest test_main -v
-```
-
-## v0.2 (Implemented)
-
-Goal: browser-based read-only UI for the selected clip's name and keywords.
-
-### What It Does
-
-- Starts a local Flask server on `http://localhost:5000`.
-- Displays the currently selected clip name and its keywords in the browser.
-- "Refresh" button fetches live data from Resolve without reloading the page.
-- Shows a loading state while fetching and an error message if no clip is selected or Resolve is not running.
-
-### Requirements
+## Requirements
 
 - Python 3.10+
 - DaVinci Resolve installed and running
@@ -115,58 +18,42 @@ Goal: browser-based read-only UI for the selected clip's name and keywords.
 pip install -r requirements.txt
 ```
 
-### Run
+## Run
 
 ```bash
 python app.py
 ```
 
-Then open `http://localhost:5000` in your browser and click **Refresh**.
+Then open `http://localhost:5000` in your browser.
 
-### API
+## What It Does
 
-`GET /api/clip` — returns JSON:
+- Connects to an open DaVinci Resolve instance through the official scripting API.
+- Finds the selected clip from the current timeline video item, falling back to the Media Pool selection.
+- Displays the clip name and its keywords in the browser.
+- **Refresh** fetches live data from Resolve without reloading the page.
+- Each keyword tag has a × button; clicking it opens an inline confirmation modal.
+- **Remove** deletes the keyword from the list; a **Save** button then appears.
+- **Save** writes the updated keyword list back to Resolve, with a brief "Saved" confirmation on success.
+
+## API
+
+`GET /api/clip` — returns the selected clip name and keywords:
 
 ```json
 {"clip": "A001_C003_0215AB", "keywords": ["interview", "city", "night"]}
 ```
 
-On error:
-
-```json
-{"error": "No clip selected"}
-```
-
-## v0.3 (Implemented)
-
-Goal: keyword removal via the browser UI with write-back to Resolve.
-
-### What It Does
-
-- Each keyword tag displays a × button.
-- Clicking × opens an inline confirmation modal showing the keyword name.
-- **Cancel** closes the modal with no change; **Remove** removes the keyword from the list.
-- A **Save** button appears after any removal; clicking it writes the updated list back to Resolve.
-- A brief "Saved" confirmation appears on success; errors are shown inline.
-
-### API
-
-`POST /api/clip/keywords` — writes keywords to the selected clip:
+`POST /api/clip/keywords` — writes an updated keyword list to the selected clip:
 
 ```json
 {"keywords": ["interview", "city"]}
 ```
 
-Response on success:
+## Tests
 
-```json
-{"clip": "A001_C003_0215AB", "keywords": ["interview", "city"]}
-```
-
-On error:
-
-```json
-{"error": "No clip selected"}
+```bash
+python3 -m unittest test_resolve_api -v
 ```
 
 ## Target Final Version (v1 Vision)
