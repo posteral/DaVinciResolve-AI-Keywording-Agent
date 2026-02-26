@@ -4,8 +4,8 @@ Python agent for reading and writing keyword metadata on clips in DaVinci Resolv
 
 ## Current Status
 
-- `v0` is implemented and working.
-- Current behavior is read-only for one selected clip and terminal output.
+- `v0.2` is the current release.
+- Includes a browser-based UI (`app.py`) and a full CLI (`main.py`) with read/write support.
 
 ## v0 (Implemented)
 
@@ -50,8 +50,7 @@ Keywords: (none)
 If no clip is selected:
 
 ```text
-No selected clip found.
-Select a clip in the timeline (or media pool) and run again.
+ERROR: No selected clip found. Select a clip in the timeline (or media pool) and run again.
 ```
 
 ## v0.1 (Implemented)
@@ -107,13 +106,10 @@ Goal: browser-based read-only UI for the selected clip's name and keywords.
 
 ### Requirements
 
-All v0 requirements, plus:
-
-```bash
-pip install flask
-```
-
-Or use `requirements.txt`:
+- Python 3.10+
+- DaVinci Resolve installed and running
+- External scripting enabled in Resolve (`Preferences → System → General`)
+- Flask:
 
 ```bash
 pip install -r requirements.txt
