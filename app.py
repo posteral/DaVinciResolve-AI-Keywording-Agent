@@ -11,11 +11,11 @@ _resolve_obj = None
 
 
 def _get_resolve():
+    """Return the cached resolve object. Must be called with _resolve_lock held."""
     global _resolve_obj
-    with _resolve_lock:
-        if _resolve_obj is None:
-            _resolve_obj = resolve_api.get_resolve()
-        return _resolve_obj
+    if _resolve_obj is None:
+        _resolve_obj = resolve_api.get_resolve()
+    return _resolve_obj
 
 
 @app.route("/")
