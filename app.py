@@ -1,4 +1,5 @@
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, send_file
+from io import BytesIO
 import resolve_api
 
 app = Flask(__name__)
@@ -24,6 +25,20 @@ def clip():
         "clip": item.GetName() or "<unnamed clip>",
         "keywords": resolve_api.get_keywords(item),
     })
+
+
+@app.route("/api/clip/thumbnail")
+def clip_thumbnail():
+    try:
+        resolve = resolve_api.get_resolve()
+    except Exception:
+        return "", 204
+
+    png = resolve_api.get_clip_thumbnail(resolve)
+    if png is None:
+        return "", 204
+
+    return send_file(BytesIO(png), mimetype="image/png")
 
 
 @app.route("/api/clip/keywords", methods=["POST"])

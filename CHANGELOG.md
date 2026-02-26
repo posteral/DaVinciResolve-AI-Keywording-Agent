@@ -4,6 +4,17 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-02-26
+
+### Added
+
+- Clip thumbnail displayed in the web UI above the clip name, fetched
+  via `timeline.GetCurrentClipThumbnailImage()` and served as PNG from
+  `GET /api/clip/thumbnail`. Refreshes alongside clip data.
+  Shows "No thumbnail available" placeholder when Resolve is not on the
+  Color page or no clip is active.
+- `Pillow>=10.0` added to `requirements.txt`.
+
 ## [0.3.3] - 2026-02-26
 
 ### Removed

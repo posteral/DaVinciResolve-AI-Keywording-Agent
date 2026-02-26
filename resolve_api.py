@@ -154,3 +154,29 @@ def set_keywords(media_pool_item: Any, keywords: list[str]) -> bool:
     return result is True
 
 
+def get_clip_thumbnail(resolve: Any) -> bytes | None:
+    import base64
+    from io import BytesIO
+    from PIL import Image
+
+    project_manager = resolve.GetProjectManager()
+    if project_manager is None:
+        return None
+    project = project_manager.GetCurrentProject()
+    if project is None:
+        return None
+    timeline = project.GetCurrentTimeline()
+    if timeline is None:
+        return None
+
+    data = timeline.GetCurrentClipThumbnailImage()
+    if not data or not data.get("data"):
+        return None
+
+    raw = base64.b64decode(data["data"])
+    img = Image.frombytes("RGB", (data["width"], data["height"]), raw)
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
