@@ -4,15 +4,21 @@ Python agent for reading and writing keyword metadata on clips in DaVinci Resolv
 
 ## Current Status
 
-- `v0.3` is the current release.
-- Browser-based UI (`app.py`) for reading and editing keywords on the selected clip.
+- `v0.4` is the current release.
+- Browser-based UI (`app.py`) for reading and editing keywords on the selected clip, with a thumbnail of the clip shown above the clip name.
 
 ## Requirements
 
 - Python 3.10+
 - DaVinci Resolve installed and running
 - External scripting enabled in Resolve (`Preferences → System → General`)
-- Flask:
+- `ffmpeg` on your system (used to extract the thumbnail frame):
+
+```bash
+brew install ffmpeg
+```
+
+- Python dependencies:
 
 ```bash
 pip install -r requirements.txt
@@ -30,7 +36,7 @@ Then open `http://localhost:5000` in your browser.
 
 - Connects to an open DaVinci Resolve instance through the official scripting API.
 - Finds the selected clip from the current timeline video item, falling back to the Media Pool selection.
-- Displays the clip name and its keywords in the browser.
+- Displays a thumbnail of the clip (extracted from the proxy file if available, otherwise the original), the clip name, and its keywords in the browser.
 - **Refresh** fetches live data from Resolve without reloading the page.
 - Each keyword tag has a × button; clicking it opens an inline confirmation modal.
 - **Remove** deletes the keyword from the list; a **Save** button then appears.
@@ -43,6 +49,8 @@ Then open `http://localhost:5000` in your browser.
 ```json
 {"clip": "A001_C003_0215AB", "keywords": ["interview", "city", "night"]}
 ```
+
+`GET /api/clip/thumbnail` — returns a PNG thumbnail of the selected clip (`204` if unavailable).
 
 `POST /api/clip/keywords` — writes an updated keyword list to the selected clip:
 

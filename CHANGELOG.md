@@ -4,6 +4,19 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-02-26
+
+### Added
+
+- 8 unit tests for `thumbnail_from_file_path()` covering: success,
+  ffmpeg failure, empty output, empty file path, ffmpeg not found,
+  midpoint seek, zero seek on probe failure, and subprocess exception.
+
+### Changed
+
+- `import subprocess` moved to module level in `resolve_api.py` so it
+  can be patched cleanly in tests.
+
 ## [0.4.0] - 2026-02-26
 
 ### Added
