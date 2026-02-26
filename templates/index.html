@@ -45,7 +45,7 @@
       flex-wrap: wrap;
     }
 
-    #refresh-btn, #save-btn {
+    #refresh-btn, #save-btn, #prev-btn, #next-btn {
       display: inline-flex;
       align-items: center;
       gap: 8px;
@@ -74,6 +74,14 @@
 
     #save-btn:hover:not(:disabled) { background: #236040; }
     #save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    #prev-btn, #next-btn {
+      background: #444;
+      color: #ccc;
+    }
+
+    #prev-btn:hover:not(:disabled), #next-btn:hover:not(:disabled) { background: #555; }
+    #prev-btn:disabled, #next-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .spinner {
       width: 14px;
@@ -282,7 +290,11 @@
         <span id="save-label">Save</span>
       </button>
 
+      <button id="prev-btn" onclick="navigate('prev')" style="display:none">&#8592; Prev</button>
+      <button id="next-btn" onclick="navigate('next')" style="display:none">Next &#8594;</button>
+
       <span id="saved-msg" class="saved-msg" style="display:none">Saved</span>
+      <span id="nav-msg" class="saved-msg" style="display:none;color:#f08080"></span>
     </div>
 
     <div id="status-area">
@@ -306,6 +318,25 @@
     let currentKeywords = [];
     let pendingRemoval = null;
 
+    function renderClip(data) {
+      const area = document.getElementById('status-area');
+      currentKeywords = data.keywords.slice();
+      area.innerHTML = `
+        <div class="thumbnail-wrap">
+          <img id="clip-thumbnail" alt="Clip thumbnail" style="display:none">
+          <span id="thumb-placeholder" class="thumbnail-placeholder">No thumbnail available</span>
+        </div>
+        <div class="label">Clip</div>
+        <div class="clip-name">${escapeHtml(data.clip)}</div>
+        <div class="label">Keywords</div>
+        <div id="kw-container"></div>
+      `;
+      renderKeywords();
+      loadThumbnail();
+      document.getElementById('prev-btn').style.display = 'inline-flex';
+      document.getElementById('next-btn').style.display = 'inline-flex';
+    }
+
     async function refresh() {
       const btn = document.getElementById('refresh-btn');
       const spinner = document.getElementById('spinner');
@@ -327,26 +358,57 @@
           return;
         }
 
-        currentKeywords = data.keywords.slice();
-
-        area.innerHTML = `
-          <div class="thumbnail-wrap">
-            <img id="clip-thumbnail" alt="Clip thumbnail" style="display:none">
-            <span id="thumb-placeholder" class="thumbnail-placeholder">No thumbnail available</span>
-          </div>
-          <div class="label">Clip</div>
-          <div class="clip-name">${escapeHtml(data.clip)}</div>
-          <div class="label">Keywords</div>
-          <div id="kw-container"></div>
-        `;
-        renderKeywords();
-        loadThumbnail();
+        renderClip(data);
       } catch (err) {
         area.innerHTML = `<div class="error-box">Could not reach the server. Is it running?</div>`;
       } finally {
         btn.disabled = false;
         spinner.style.display = 'none';
         label.textContent = 'Refresh';
+      }
+    }
+
+    async function navigate(direction) {
+      const prevBtn = document.getElementById('prev-btn');
+      const nextBtn = document.getElementById('next-btn');
+      const refreshBtn = document.getElementById('refresh-btn');
+      const navMsg = document.getElementById('nav-msg');
+
+      prevBtn.disabled = true;
+      nextBtn.disabled = true;
+      refreshBtn.disabled = true;
+      navMsg.style.display = 'none';
+      hideSave();
+
+      try {
+        const res = await fetch('/api/clip/navigate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ direction }),
+        });
+        const data = await res.json();
+
+        if (res.status === 404) {
+          navMsg.textContent = 'No more clips';
+          navMsg.style.display = 'inline';
+          setTimeout(() => { navMsg.style.display = 'none'; }, 2000);
+          return;
+        }
+
+        if (!res.ok) {
+          const area = document.getElementById('status-area');
+          area.innerHTML = `<div class="error-box">${escapeHtml(data.error || 'Unknown error')}</div>`;
+          return;
+        }
+
+        renderClip(data);
+      } catch (err) {
+        const area = document.getElementById('status-area');
+        area.innerHTML = `<div class="error-box">Could not reach the server. Is it running?</div>`;
+      } finally {
+        prevBtn.disabled = false;
+        nextBtn.disabled = false;
+        refreshBtn.disabled = false;
       }
     }
 

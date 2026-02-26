@@ -67,6 +67,31 @@ def clip_thumbnail():
     return send_file(BytesIO(png), mimetype="image/png")
 
 
+@app.route("/api/clip/navigate", methods=["POST"])
+def navigate_clip():
+    body = request.get_json(silent=True) or {}
+    direction_str = body.get("direction")
+    if direction_str == "next":
+        direction = 1
+    elif direction_str == "prev":
+        direction = -1
+    else:
+        return jsonify({"error": "direction must be 'next' or 'prev'"}), 400
+
+    try:
+        with _resolve_lock:
+            resolve = _get_resolve()
+            item = resolve_api.navigate_clip(resolve, direction)
+            if item is None:
+                return jsonify({"error": "No more clips"}), 404
+            name = item.GetName() or "<unnamed clip>"
+            keywords = resolve_api.get_keywords(item)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+    return jsonify({"clip": name, "keywords": keywords})
+
+
 @app.route("/api/clip/keywords", methods=["POST"])
 def set_keywords():
     body = request.get_json(silent=True) or {}

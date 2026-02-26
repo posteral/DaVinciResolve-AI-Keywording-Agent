@@ -155,6 +155,45 @@ def set_keywords(media_pool_item: Any, keywords: list[str]) -> bool:
     return result is True
 
 
+def navigate_clip(resolve: Any, direction: int) -> Any | None:
+    """Select the next (+1) or previous (-1) clip in the current Media Pool
+    folder. Returns the newly selected MediaPoolItem, or None if at boundary."""
+    project_manager = resolve.GetProjectManager()
+    if project_manager is None:
+        return None
+    project = project_manager.GetCurrentProject()
+    if project is None:
+        return None
+    media_pool = project.GetMediaPool()
+    if media_pool is None:
+        return None
+
+    current_item = get_selected_media_pool_item(resolve)
+    if current_item is None:
+        return None
+
+    folder = media_pool.GetCurrentFolder()
+    if folder is None:
+        return None
+
+    clips = _as_sequence(folder.GetClipList())
+    if not clips:
+        return None
+
+    current_id = current_item.GetMediaId()
+    indices = [i for i, c in enumerate(clips) if c.GetMediaId() == current_id]
+    if not indices:
+        return None
+
+    new_index = indices[0] + direction
+    if new_index < 0 or new_index >= len(clips):
+        return None  # already at boundary
+
+    new_item = clips[new_index]
+    media_pool.SetSelectedClip(new_item)
+    return new_item
+
+
 def _ffmpeg_path() -> str:
     import shutil
     exe = shutil.which("ffmpeg")
