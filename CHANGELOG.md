@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-02-26
+
+### Fixed
+
+- × button on keyword tags did not fire — inline `onclick` with `JSON.stringify` produced unescaped quotes in the HTML attribute, which the browser silently rejected. Replaced `innerHTML` string-building with DOM element construction and `addEventListener`.
+
 ## [0.3.0] - 2026-02-26
 
 ### Added
