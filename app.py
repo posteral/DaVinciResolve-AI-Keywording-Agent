@@ -29,12 +29,19 @@ def clip():
 
 @app.route("/api/clip/thumbnail")
 def clip_thumbnail():
-    try:
-        resolve = resolve_api.get_resolve()
-    except Exception:
-        return "", 204
+    import concurrent.futures
 
-    png = resolve_api.get_clip_thumbnail(resolve)
+    def _fetch():
+        resolve = resolve_api.get_resolve()
+        return resolve_api.get_clip_thumbnail(resolve)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(_fetch)
+        try:
+            png = future.result(timeout=20)
+        except Exception:
+            return "", 204
+
     if png is None:
         return "", 204
 
@@ -65,4 +72,4 @@ def set_keywords():
 
 
 if __name__ == "__main__":
-    app.run(debug=False, port=5000)
+    app.run(debug=False, port=5000, threaded=True)
