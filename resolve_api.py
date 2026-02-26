@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import sys
 import os
 from pathlib import Path
@@ -155,21 +154,3 @@ def set_keywords(media_pool_item: Any, keywords: list[str]) -> bool:
     return result is True
 
 
-def format_output(clip_name: str, keywords: list[str], as_json: bool) -> str:
-    if as_json:
-        return json.dumps({"clip": clip_name, "keywords": keywords})
-    lines = [f"Clip: {clip_name}"]
-    if not keywords:
-        lines.append("Keywords: (none)")
-    else:
-        lines.append("Keywords:")
-        for kw in keywords:
-            lines.append(f"- {kw}")
-    return "\n".join(lines)
-
-
-def _error(message: str, as_json: bool) -> None:
-    if as_json:
-        print(json.dumps({"error": message}), file=sys.stderr)
-    else:
-        print(f"ERROR: {message}", file=sys.stderr)

@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-02-26
+
+### Removed
+
+- `main.py` — CLI entry point deleted; the web UI (`app.py`) is the only entry point.
+- `format_output()` and `_error()` removed from `resolve_api.py` (CLI-only helpers with no remaining callers).
+- `test_main.py` replaced by `test_resolve_api.py`; CLI test class (`TestMain`) and `TestFormatOutput` removed.
+
 ## [0.3.2] - 2026-02-26
 
 ### Changed
