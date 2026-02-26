@@ -54,23 +54,45 @@ No selected clip found.
 Select a clip in the timeline (or media pool) and run again.
 ```
 
-## v0.1 (Next Iteration)
+## v0.1 (Implemented)
 
 Goal: move from read-only to safe metadata updates for the selected clip.
 
-Planned scope:
+### CLI Modes
 
-- Add CLI modes:
-  - `--read` (existing behavior)
-  - `--set "k1,k2"`
-  - `--append`
-  - `--replace`
-  - `--dry-run`
-  - `--json`
-- Implement deterministic merge and dedupe policy for keywords.
-- Preserve manual keywords by default unless `--replace` is explicitly requested.
-- Add explicit, user-friendly error states for connection and selection failures.
-- Add unit tests using mocked Resolve objects for read, merge, and write flows.
+```bash
+# Read keywords (default)
+python3 main.py
+
+# Set keywords, replacing all existing
+python3 main.py --set "interview, city, night"
+
+# Append keywords to existing ones
+python3 main.py --append "extra, tag"
+
+# Replace all keywords (alias for --set)
+python3 main.py --replace "final"
+
+# Preview what would be written without writing
+python3 main.py --set "a, b" --dry-run
+
+# Machine-readable JSON output
+python3 main.py --json
+python3 main.py --set "a, b" --dry-run --json
+```
+
+### Keyword Policy
+
+- Keywords are deduplicated case-insensitively; first occurrence wins.
+- `--append` preserves existing keywords and adds new ones.
+- `--set` / `--replace` discard existing keywords and set new ones.
+- `--dry-run` shows the result without writing anything to Resolve.
+
+### Tests
+
+```bash
+python3 -m unittest test_main -v
+```
 
 ## Target Final Version (v1 Vision)
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import argparse
+import json
 import sys
 import os
 from pathlib import Path
@@ -129,30 +131,156 @@ def get_keywords(media_pool_item: Any) -> list[str]:
     return _normalize_keywords(clip_property)
 
 
+def _dedupe_preserve_order(keywords: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for kw in keywords:
+        lower = kw.lower()
+        if lower not in seen:
+            seen.add(lower)
+            result.append(kw)
+    return result
+
+
+def merge_keywords(existing: list[str], incoming: list[str], mode: str) -> list[str]:
+    if mode in ("set", "replace"):
+        return _dedupe_preserve_order(incoming)
+    if mode == "append":
+        return _dedupe_preserve_order(existing + incoming)
+    raise ValueError(f"Unknown merge mode: {mode!r}")
+
+
+def set_keywords(media_pool_item: Any, keywords: list[str]) -> bool:
+    joined = ", ".join(keywords)
+    result = media_pool_item.SetMetadata("Keywords", joined)
+    return result is True
+
+
+def format_output(clip_name: str, keywords: list[str], as_json: bool) -> str:
+    if as_json:
+        return json.dumps({"clip": clip_name, "keywords": keywords})
+    lines = [f"Clip: {clip_name}"]
+    if not keywords:
+        lines.append("Keywords: (none)")
+    else:
+        lines.append("Keywords:")
+        for kw in keywords:
+            lines.append(f"- {kw}")
+    return "\n".join(lines)
+
+
+def _error(message: str, as_json: bool) -> None:
+    if as_json:
+        print(json.dumps({"error": message}), file=sys.stderr)
+    else:
+        print(f"ERROR: {message}", file=sys.stderr)
+
+
+def build_arg_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Read or write keyword metadata on the selected DaVinci Resolve clip."
+    )
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--set",
+        metavar="KEYWORDS",
+        dest="set_keywords",
+        help='Set keywords, replacing all existing ones. Comma-separated. e.g. "k1,k2"',
+    )
+    group.add_argument(
+        "--replace",
+        metavar="KEYWORDS",
+        dest="replace_keywords",
+        help="Alias for --set.",
+    )
+    group.add_argument(
+        "--append",
+        metavar="KEYWORDS",
+        dest="append_keywords",
+        help="Append keywords to existing ones. Comma-separated.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be written without actually writing.",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="as_json",
+        help="Output in JSON format.",
+    )
+    return parser
+
+
 def main() -> int:
+    parser = build_arg_parser()
+    args = parser.parse_args()
+
+    # Determine write mode and incoming keywords
+    if args.set_keywords is not None:
+        write_mode: str | None = "set"
+        incoming_raw: str = args.set_keywords
+    elif args.replace_keywords is not None:
+        write_mode = "set"
+        incoming_raw = args.replace_keywords
+    elif args.append_keywords is not None:
+        write_mode = "append"
+        incoming_raw = args.append_keywords
+    else:
+        write_mode = None
+        incoming_raw = ""
+
     try:
         resolve = get_resolve()
     except Exception as exc:
-        print(f"ERROR: {exc}")
+        _error(str(exc), args.as_json)
         return 1
 
     media_pool_item = get_selected_media_pool_item(resolve)
     if media_pool_item is None:
-        print("No selected clip found.")
-        print("Select a clip in the timeline (or media pool) and run again.")
+        _error(
+            "No selected clip found. Select a clip in the timeline (or media pool) and run again.",
+            args.as_json,
+        )
         return 1
 
     clip_name = media_pool_item.GetName() or "<unnamed clip>"
-    keywords = get_keywords(media_pool_item)
+    existing = get_keywords(media_pool_item)
 
-    print(f"Clip: {clip_name}")
-    if not keywords:
-        print("Keywords: (none)")
-        return 0
+    if write_mode is not None:
+        incoming = _normalize_keywords(incoming_raw)
+        new_keywords = merge_keywords(existing, incoming, write_mode)
 
-    print("Keywords:")
-    for keyword in keywords:
-        print(f"- {keyword}")
+        if args.dry_run:
+            if args.as_json:
+                print(json.dumps({"clip": clip_name, "dry_run": True, "keywords": new_keywords}))
+            else:
+                print(f"Clip: {clip_name}")
+                print("[dry-run] Keywords would be set to:")
+                if new_keywords:
+                    for kw in new_keywords:
+                        print(f"- {kw}")
+                else:
+                    print("(none)")
+        else:
+            ok = set_keywords(media_pool_item, new_keywords)
+            if not ok:
+                _error("Failed to write keywords to Resolve. Check that External Scripting is enabled.", args.as_json)
+                return 1
+            if args.as_json:
+                print(json.dumps({"clip": clip_name, "keywords": new_keywords, "written": True}))
+            else:
+                print(f"Clip: {clip_name}")
+                print("Keywords written:")
+                if new_keywords:
+                    for kw in new_keywords:
+                        print(f"- {kw}")
+                else:
+                    print("(none)")
+    else:
+        print(format_output(clip_name, existing, args.as_json))
+
     return 0
 
 
