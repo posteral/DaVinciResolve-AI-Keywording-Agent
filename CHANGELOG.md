@@ -8,11 +8,12 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
-- Clip thumbnail displayed in the web UI above the clip name, fetched
-  via `timeline.GetCurrentClipThumbnailImage()` and served as PNG from
-  `GET /api/clip/thumbnail`. Refreshes alongside clip data.
-  Shows "No thumbnail available" placeholder when Resolve is not on the
-  Color page or no clip is active.
+- Clip thumbnail displayed in the web UI above the clip name, served as
+  PNG from `GET /api/clip/thumbnail`. Refreshes alongside clip data.
+  Two-strategy approach: uses `timeline.GetCurrentClipThumbnailImage()`
+  when on the Color page, otherwise falls back to extracting a mid-point
+  frame from the source file via `ffmpeg`. Shows "No thumbnail available"
+  placeholder when neither strategy succeeds.
 - `Pillow>=10.0` added to `requirements.txt`.
 
 ## [0.3.3] - 2026-02-26

@@ -154,7 +154,8 @@ def set_keywords(media_pool_item: Any, keywords: list[str]) -> bool:
     return result is True
 
 
-def get_clip_thumbnail(resolve: Any) -> bytes | None:
+def _thumbnail_from_timeline(resolve: Any) -> bytes | None:
+    """Try GetCurrentClipThumbnailImage() — only works on the Color page."""
     import base64
     from io import BytesIO
     from PIL import Image
@@ -178,5 +179,66 @@ def get_clip_thumbnail(resolve: Any) -> bytes | None:
     buf = BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()
+
+
+def _thumbnail_from_file(media_pool_item: Any) -> bytes | None:
+    """Extract a mid-point frame from the source file via ffmpeg."""
+    import subprocess
+
+    file_path = media_pool_item.GetClipProperty("File Path")
+    if not file_path:
+        return None
+
+    # Probe duration so we can seek to the middle of the clip.
+    try:
+        probe = subprocess.run(
+            [
+                "ffprobe", "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                file_path,
+            ],
+            capture_output=True,
+            timeout=10,
+        )
+        duration = float(probe.stdout.strip()) if probe.returncode == 0 else 0.0
+    except Exception:
+        duration = 0.0
+
+    seek = duration / 2 if duration > 0 else 0.0
+
+    try:
+        result = subprocess.run(
+            [
+                "ffmpeg", "-ss", str(seek),
+                "-i", file_path,
+                "-frames:v", "1",
+                "-f", "image2pipe",
+                "-vcodec", "png",
+                "-",
+            ],
+            capture_output=True,
+            timeout=15,
+        )
+    except Exception:
+        return None
+
+    if result.returncode != 0 or not result.stdout:
+        return None
+
+    return result.stdout
+
+
+def get_clip_thumbnail(resolve: Any) -> bytes | None:
+    # 1. Try the Color-page API first (zero extra dependencies).
+    png = _thumbnail_from_timeline(resolve)
+    if png is not None:
+        return png
+
+    # 2. Fall back to ffmpeg using the selected clip's file path.
+    item = get_selected_media_pool_item(resolve)
+    if item is None:
+        return None
+    return _thumbnail_from_file(item)
 
 
