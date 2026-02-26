@@ -10,11 +10,27 @@ All notable changes to this project are documented in this file.
 
 - Clip thumbnail displayed in the web UI above the clip name, served as
   PNG from `GET /api/clip/thumbnail`. Refreshes alongside clip data.
-  Two-strategy approach: uses `timeline.GetCurrentClipThumbnailImage()`
-  when on the Color page, otherwise falls back to extracting a mid-point
-  frame from the source file via `ffmpeg`. Shows "No thumbnail available"
-  placeholder when neither strategy succeeds.
-- `Pillow>=10.0` added to `requirements.txt`.
+  Uses the proxy file (`Proxy Media Path`) when available, otherwise
+  falls back to the original (`File Path`). A mid-point frame is
+  extracted via `ffmpeg`. Shows "No thumbnail available" placeholder
+  when no file path is available or ffmpeg fails.
+- `thumbnail_from_file_path()` added to `resolve_api.py`; uses ffmpeg
+  to extract a frame with no Resolve IPC involved.
+- `GET /api/clip/thumbnail` fetched via `fetch()` in JS rather than a
+  direct `<img src>`, so a `204 No Content` response reliably shows the
+  placeholder instead of leaving the image in a broken loading state.
+
+### Fixed
+
+- Resolve scripting API is not thread-safe: all IPC calls are now
+  serialised through a single `threading.Lock` in `app.py`, with one
+  cached `resolve` object reused across requests.
+- `_get_resolve()` was acquiring the lock inside itself while all
+  callers already held it — a re-entrant deadlock that hung every
+  request. Fixed by making `_get_resolve()` lock-free and requiring
+  callers to hold the lock.
+- Flask runs with `threaded=True` so the thumbnail route (which runs
+  ffmpeg outside the lock) cannot block `/api/clip`.
 
 ## [0.3.3] - 2026-02-26
 
