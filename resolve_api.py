@@ -154,3 +154,74 @@ def set_keywords(media_pool_item: Any, keywords: list[str]) -> bool:
     return result is True
 
 
+def _ffmpeg_path() -> str:
+    import shutil
+    exe = shutil.which("ffmpeg")
+    if exe:
+        return exe
+    for candidate in ("/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/usr/bin/ffmpeg"):
+        if os.path.isfile(candidate):
+            return candidate
+    raise FileNotFoundError("ffmpeg not found; install it with: brew install ffmpeg")
+
+
+def _ffprobe_path() -> str:
+    import shutil
+    exe = shutil.which("ffprobe")
+    if exe:
+        return exe
+    for candidate in ("/opt/homebrew/bin/ffprobe", "/usr/local/bin/ffprobe", "/usr/bin/ffprobe"):
+        if os.path.isfile(candidate):
+            return candidate
+    raise FileNotFoundError("ffprobe not found; install it with: brew install ffmpeg")
+
+
+def thumbnail_from_file_path(file_path: str) -> bytes | None:
+    """Extract a mid-point frame from a media file via ffmpeg. No Resolve IPC."""
+    import subprocess
+
+    try:
+        ffmpeg = _ffmpeg_path()
+        ffprobe = _ffprobe_path()
+    except FileNotFoundError:
+        return None
+
+    try:
+        probe = subprocess.run(
+            [
+                ffprobe, "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                file_path,
+            ],
+            capture_output=True,
+            timeout=10,
+        )
+        duration = float(probe.stdout.strip()) if probe.returncode == 0 else 0.0
+    except Exception:
+        duration = 0.0
+
+    seek = duration / 2 if duration > 0 else 0.0
+
+    try:
+        result = subprocess.run(
+            [
+                ffmpeg, "-ss", str(seek),
+                "-i", file_path,
+                "-frames:v", "1",
+                "-f", "image2pipe",
+                "-vcodec", "png",
+                "-",
+            ],
+            capture_output=True,
+            timeout=15,
+        )
+    except Exception:
+        return None
+
+    if result.returncode != 0 or not result.stdout:
+        return None
+
+    return result.stdout
+
+

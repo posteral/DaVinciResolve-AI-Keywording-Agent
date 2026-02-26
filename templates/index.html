@@ -165,6 +165,31 @@
       color: #555;
     }
 
+    .thumbnail-wrap {
+      margin-bottom: 20px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 6px;
+      overflow: hidden;
+      width: 100%;
+      aspect-ratio: 16/9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .thumbnail-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .thumbnail-placeholder {
+      color: #444;
+      font-size: 0.8rem;
+      font-style: italic;
+    }
+
     .saved-msg {
       font-size: 0.85rem;
       color: #5db87a;
@@ -305,12 +330,17 @@
         currentKeywords = data.keywords.slice();
 
         area.innerHTML = `
+          <div class="thumbnail-wrap">
+            <img id="clip-thumbnail" alt="Clip thumbnail" style="display:none">
+            <span id="thumb-placeholder" class="thumbnail-placeholder">No thumbnail available</span>
+          </div>
           <div class="label">Clip</div>
           <div class="clip-name">${escapeHtml(data.clip)}</div>
           <div class="label">Keywords</div>
           <div id="kw-container"></div>
         `;
         renderKeywords();
+        loadThumbnail();
       } catch (err) {
         area.innerHTML = `<div class="error-box">Could not reach the server. Is it running?</div>`;
       } finally {
@@ -420,6 +450,23 @@
     function hideSave() {
       document.getElementById('save-btn').style.display = 'none';
       document.getElementById('saved-msg').style.display = 'none';
+    }
+
+    async function loadThumbnail() {
+      const img = document.getElementById('clip-thumbnail');
+      const placeholder = document.getElementById('thumb-placeholder');
+      if (!img || !placeholder) return;
+
+      try {
+        const res = await fetch('/api/clip/thumbnail');
+        if (!res.ok) return; // placeholder stays visible
+        const blob = await res.blob();
+        img.src = URL.createObjectURL(blob);
+        img.style.display = 'block';
+        placeholder.style.display = 'none';
+      } catch (_) {
+        // placeholder stays visible
+      }
     }
 
     function escapeHtml(str) {
