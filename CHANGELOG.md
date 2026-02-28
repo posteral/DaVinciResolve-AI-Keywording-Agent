@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.15.1] - 2026-02-28
+
+### Changed
+
+- Detected Identities panel now groups multiple detections of the same person
+  into a single card with a thumbnail strip. Previously each face crop produced
+  a separate card even when matched to the same identity. Unknown faces each
+  remain their own card.
+
 ## [0.15.0] - 2026-02-28
 
 ### Changed
