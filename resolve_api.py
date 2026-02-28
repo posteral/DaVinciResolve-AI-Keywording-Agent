@@ -165,6 +165,26 @@ def _clip_date_key(clip: Any) -> tuple:
     return (datetime.max, clip.GetName() or "")
 
 
+# Cache for the sorted clip list of the current folder.
+# Key: (folder_name, clip_count) — cheap to compute, invalidates when the
+# folder changes or clips are added/removed.
+_sorted_clips_cache: tuple | None = None  # (cache_key, list[clip])
+
+
+def _get_sorted_clips(folder: Any) -> list:
+    """Return the date-sorted clip list for a folder, using a cache keyed by
+    (folder_name, clip_count). The cache is invalidated whenever the count
+    changes (new clip added/removed) or the folder changes."""
+    global _sorted_clips_cache
+    raw = _as_sequence(folder.GetClipList())
+    cache_key = (folder.GetName(), len(raw))
+    if _sorted_clips_cache is not None and _sorted_clips_cache[0] == cache_key:
+        return _sorted_clips_cache[1]
+    sorted_clips = sorted(raw, key=_clip_date_key)
+    _sorted_clips_cache = (cache_key, sorted_clips)
+    return sorted_clips
+
+
 def navigate_clip(resolve: Any, direction: int) -> Any | None:
     """Select the next (+1) or previous (-1) clip in the current Media Pool
     folder, ordered by Date Created (matching Resolve's default UI sort).
@@ -187,7 +207,7 @@ def navigate_clip(resolve: Any, direction: int) -> Any | None:
     if folder is None:
         return None
 
-    clips = sorted(_as_sequence(folder.GetClipList()), key=_clip_date_key)
+    clips = _get_sorted_clips(folder)
     if not clips:
         return None
 
@@ -227,7 +247,7 @@ def suggest_keywords(resolve: Any) -> tuple[list[str], dict]:
     if folder is None:
         return [], {"reason": "no folder"}
 
-    clips = _as_sequence(folder.GetClipList())
+    clips = _get_sorted_clips(folder)
     if not clips:
         return [], {"reason": "no clips in folder"}
 
