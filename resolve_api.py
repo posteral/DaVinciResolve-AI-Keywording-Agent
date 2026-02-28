@@ -256,6 +256,28 @@ def suggest_keywords(resolve: Any, n_neighbours: int = 10) -> list[str]:
     return [first_seen[k] for k in ranked[:3]]
 
 
+def _normalise_ai_keyword(text: str) -> str:
+    """Apply keyword casing conventions to a VLM response.
+
+    llava capitalises every word by default (Title Case). The rule is:
+    - If ALL words are capitalised the model has just applied default Title
+      Case to a generic phrase → lowercase the whole thing.
+    - If only SOME words are capitalised those are genuine proper nouns
+      (e.g. 'Space Needle', 'Eiffel Tower') → keep their capitalisation,
+      lowercase the rest.
+    """
+    words = text.strip().split()
+    if not words:
+        return text
+
+    capitalised = [w[0].isupper() for w in words if w]
+    if all(capitalised):
+        return text.lower()
+
+    # Mixed: keep capitalised words as proper nouns, lowercase the rest.
+    return " ".join(w if w[0].isupper() else w.lower() for w in words)
+
+
 def ai_suggest_keyword(file_path: str, model: str = "llava") -> str | None:
     """Return a single AI-generated keyword for a clip by sending its thumbnail
     to a locally running Ollama VLM. Returns None if Ollama is unreachable."""
@@ -290,7 +312,9 @@ def ai_suggest_keyword(file_path: str, model: str = "llava") -> str | None:
         with urllib.request.urlopen(req, timeout=60) as resp:
             result = json.loads(resp.read())
         text = result.get("response", "").strip()
-        return text if text else None
+        if not text:
+            return None
+        return _normalise_ai_keyword(text)
     except Exception:
         return None
 

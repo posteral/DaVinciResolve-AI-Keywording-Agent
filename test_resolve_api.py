@@ -232,6 +232,31 @@ class TestSuggestKeywords(unittest.TestCase):
         self.assertIn("beta", suggestions)
 
 
+class TestNormaliseAiKeyword(unittest.TestCase):
+    def test_all_caps_generic_lowercased(self):
+        # All words capitalised → llava default Title Case → lowercase
+        self.assertEqual(resolve_api._normalise_ai_keyword("Staircase"), "staircase")
+        self.assertEqual(resolve_api._normalise_ai_keyword("Model Train Set"), "model train set")
+        self.assertEqual(resolve_api._normalise_ai_keyword("Ski Lift"), "ski lift")
+
+    def test_all_caps_proper_noun_lowercased(self):
+        # llava Title-Cases proper nouns too, indistinguishable from generics
+        # when all words are caps — they come out lowercase and the user can
+        # correct if needed; Space Needle should still be caught by mixed rule
+        self.assertEqual(resolve_api._normalise_ai_keyword("Space Needle"), "space needle")
+
+    def test_mixed_proper_noun_kept(self):
+        # Model outputs mixed casing → proper noun detected
+        self.assertEqual(resolve_api._normalise_ai_keyword("Seattle waterfront"), "Seattle waterfront")
+        self.assertEqual(resolve_api._normalise_ai_keyword("couple in Eiffel Tower"), "couple in Eiffel Tower")
+
+    def test_already_lowercase_unchanged(self):
+        self.assertEqual(resolve_api._normalise_ai_keyword("rolling hills"), "rolling hills")
+
+    def test_empty_string(self):
+        self.assertEqual(resolve_api._normalise_ai_keyword(""), "")
+
+
 class TestAiSuggestKeyword(unittest.TestCase):
     def _make_urlopen(self, response_text):
         import json
