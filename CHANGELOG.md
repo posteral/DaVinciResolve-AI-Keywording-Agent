@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-02-28
+
+### Changed
+
+- AI keyword prompt now includes proximity suggestions from nearby clips so the
+  LLM can focus on aspects not already covered by the purple suggestion buttons.
+
 ## [0.14.2] - 2026-02-28
 
 ### Fixed
