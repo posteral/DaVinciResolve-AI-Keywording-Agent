@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-02-28
+
+### Added
+
+- Each identity card now has a **Dismiss** button at the bottom. Clicking it
+  removes the card from the current review session only — nothing is written
+  to the identity registry and nothing is added as a keyword. If all cards
+  are dismissed the Apply button hides and the "No faces detected" message
+  is shown.
+
 ## [0.16.0] - 2026-02-28
 
 ### Added
