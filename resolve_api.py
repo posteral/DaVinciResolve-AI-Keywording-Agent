@@ -222,6 +222,58 @@ def navigate_clip(resolve: Any, direction: int) -> Any | None:
     return new_item
 
 
+def suggest_keywords(resolve: Any, n_neighbours: int = 10) -> list[str]:
+    """Return up to 3 keyword suggestions for the current clip based on
+    keywords used by the N temporally closest clips in the same folder."""
+    project_manager = resolve.GetProjectManager()
+    if project_manager is None:
+        return []
+    project = project_manager.GetCurrentProject()
+    if project is None:
+        return []
+    media_pool = project.GetMediaPool()
+    if media_pool is None:
+        return []
+
+    current_item = get_selected_media_pool_item(resolve)
+    if current_item is None:
+        return []
+
+    folder = media_pool.GetCurrentFolder()
+    if folder is None:
+        return []
+
+    clips = sorted(_as_sequence(folder.GetClipList()), key=_clip_date_key)
+    if not clips:
+        return []
+
+    current_id = current_item.GetMediaId()
+    indices = [i for i, c in enumerate(clips) if c.GetMediaId() == current_id]
+    if not indices:
+        return []
+
+    idx = indices[0]
+    half = n_neighbours // 2
+    start = max(0, idx - half)
+    end = min(len(clips), idx + half + 1)
+    neighbours = [c for i, c in enumerate(clips[start:end], start) if i != idx]
+
+    current_kws = {k.lower() for k in get_keywords(current_item)}
+
+    counts: dict[str, int] = {}
+    first_seen: dict[str, str] = {}
+    for clip in neighbours:
+        for kw in get_keywords(clip):
+            key = kw.lower()
+            if key not in current_kws:
+                counts[key] = counts.get(key, 0) + 1
+                if key not in first_seen:
+                    first_seen[key] = kw
+
+    ranked = sorted(counts.keys(), key=lambda k: -counts[k])
+    return [first_seen[k] for k in ranked[:3]]
+
+
 def _ffmpeg_path() -> str:
     import shutil
     exe = shutil.which("ffmpeg")

@@ -4,6 +4,27 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-02-28
+
+### Added
+
+- Keyword suggestion UI: up to 3 purple "Suggested" buttons appear below
+  the keyword list after each Refresh or clip navigation, showing the most
+  frequently used keywords on temporally adjacent clips in the same folder.
+- `suggest_keywords(resolve, n_neighbours=10)` in `resolve_api.py`: collects
+  keywords from the N closest clips by index in a date-sorted folder list,
+  counts frequencies, excludes keywords already on the current clip
+  (case-insensitive), and returns the top 3 by frequency.
+- `GET /api/clip/suggestions` route in `app.py`: returns
+  `{"suggestions": [...]}`.
+- Clicking a suggestion button adds the keyword to the pending list and
+  disables the button; the existing Save flow writes it to Resolve.
+- Suggestions section is hidden entirely when no suggestions are available;
+  failures are silently ignored (best-effort).
+- 5 unit tests in `TestSuggestKeywords`: top-3 ranking, current-keyword
+  exclusion, empty result when neighbours have no keywords, empty result
+  when no clip is selected, and fewer-than-3 candidates.
+
 ## [0.5.0] - 2026-02-26
 
 ### Added

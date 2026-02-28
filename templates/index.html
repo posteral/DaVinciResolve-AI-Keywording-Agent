@@ -173,6 +173,19 @@
       color: #555;
     }
 
+    .suggestion-btn {
+      background: #3b2a5a;
+      color: #c9b8f0;
+      border: 1px solid #5a3e8a;
+      border-radius: 4px;
+      padding: 3px 10px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .suggestion-btn:hover:not(:disabled) { background: #4e3a78; }
+    .suggestion-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
     .thumbnail-wrap {
       margin-bottom: 20px;
       background: #1a1a1a;
@@ -330,9 +343,14 @@
         <div class="clip-name">${escapeHtml(data.clip)}</div>
         <div class="label">Keywords</div>
         <div id="kw-container"></div>
+        <div id="suggestions-section" style="display:none;margin-top:16px">
+          <div class="label">Suggested</div>
+          <div id="suggestions-container"></div>
+        </div>
       `;
       renderKeywords();
       loadThumbnail();
+      loadSuggestions();
       document.getElementById('prev-btn').style.display = 'inline-flex';
       document.getElementById('next-btn').style.display = 'inline-flex';
     }
@@ -529,6 +547,41 @@
       } catch (_) {
         // placeholder stays visible
       }
+    }
+
+    async function loadSuggestions() {
+      const section = document.getElementById('suggestions-section');
+      const container = document.getElementById('suggestions-container');
+      if (!section || !container) return;
+
+      try {
+        const res = await fetch('/api/clip/suggestions');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.suggestions || data.suggestions.length === 0) return;
+
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px';
+        data.suggestions.forEach(kw => {
+          const btn = document.createElement('button');
+          btn.className = 'suggestion-btn';
+          btn.textContent = '+ ' + kw;
+          btn.addEventListener('click', () => addSuggestion(kw, btn));
+          row.appendChild(btn);
+        });
+        container.appendChild(row);
+        section.style.display = 'block';
+      } catch (_) {
+        // suggestions are best-effort — fail silently
+      }
+    }
+
+    function addSuggestion(kw, btn) {
+      if (currentKeywords.map(k => k.toLowerCase()).includes(kw.toLowerCase())) return;
+      currentKeywords.push(kw);
+      renderKeywords();
+      showSave();
+      btn.disabled = true;
     }
 
     function escapeHtml(str) {

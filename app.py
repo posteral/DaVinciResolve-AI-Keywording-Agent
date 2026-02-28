@@ -67,6 +67,18 @@ def clip_thumbnail():
     return send_file(BytesIO(png), mimetype="image/png")
 
 
+@app.route("/api/clip/suggestions")
+def clip_suggestions():
+    try:
+        with _resolve_lock:
+            resolve = _get_resolve()
+            suggestions = resolve_api.suggest_keywords(resolve)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+    return jsonify({"suggestions": suggestions})
+
+
 @app.route("/api/clip/navigate", methods=["POST"])
 def navigate_clip():
     body = request.get_json(silent=True) or {}
