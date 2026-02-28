@@ -29,47 +29,6 @@ class TestNormalizeKeywords(unittest.TestCase):
         self.assertEqual(resolve_api._normalize_keywords("  tag  "), ["tag"])
 
 
-class TestDedupePreserveOrder(unittest.TestCase):
-    def test_removes_case_insensitive_duplicates(self):
-        self.assertEqual(resolve_api._dedupe_preserve_order(["tag", "Tag", "TAG"]), ["tag"])
-
-    def test_preserves_first_occurrence(self):
-        self.assertEqual(resolve_api._dedupe_preserve_order(["Tag", "tag"]), ["Tag"])
-
-    def test_preserves_order(self):
-        self.assertEqual(resolve_api._dedupe_preserve_order(["b", "a", "c"]), ["b", "a", "c"])
-
-    def test_empty_list(self):
-        self.assertEqual(resolve_api._dedupe_preserve_order([]), [])
-
-
-class TestMergeKeywords(unittest.TestCase):
-    def test_set_replaces_existing(self):
-        self.assertEqual(resolve_api.merge_keywords(["old"], ["new"], "set"), ["new"])
-
-    def test_set_dedupes_incoming(self):
-        self.assertEqual(resolve_api.merge_keywords([], ["a", "A"], "set"), ["a"])
-
-    def test_replace_is_alias_for_set(self):
-        self.assertEqual(resolve_api.merge_keywords(["old"], ["new"], "replace"), ["new"])
-
-    def test_append_combines(self):
-        self.assertEqual(resolve_api.merge_keywords(["a"], ["b"], "append"), ["a", "b"])
-
-    def test_append_dedupes(self):
-        self.assertEqual(resolve_api.merge_keywords(["a"], ["a", "b"], "append"), ["a", "b"])
-
-    def test_append_case_insensitive_dedupe(self):
-        self.assertEqual(resolve_api.merge_keywords(["Tag"], ["tag", "new"], "append"), ["Tag", "new"])
-
-    def test_set_empty_clears(self):
-        self.assertEqual(resolve_api.merge_keywords(["old"], [], "set"), [])
-
-    def test_unknown_mode_raises(self):
-        with self.assertRaises(ValueError):
-            resolve_api.merge_keywords([], [], "unknown")
-
-
 class TestGetKeywords(unittest.TestCase):
     def _make_item(self, metadata: dict, clip_property: str = "") -> MagicMock:
         item = MagicMock()

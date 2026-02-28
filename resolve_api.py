@@ -131,25 +131,6 @@ def get_keywords(media_pool_item: Any) -> list[str]:
     return _normalize_keywords(clip_property)
 
 
-def _dedupe_preserve_order(keywords: list[str]) -> list[str]:
-    seen: set[str] = set()
-    result: list[str] = []
-    for kw in keywords:
-        lower = kw.lower()
-        if lower not in seen:
-            seen.add(lower)
-            result.append(kw)
-    return result
-
-
-def merge_keywords(existing: list[str], incoming: list[str], mode: str) -> list[str]:
-    if mode in ("set", "replace"):
-        return _dedupe_preserve_order(incoming)
-    if mode == "append":
-        return _dedupe_preserve_order(existing + incoming)
-    raise ValueError(f"Unknown merge mode: {mode!r}")
-
-
 def set_keywords(media_pool_item: Any, keywords: list[str]) -> bool:
     joined = ", ".join(keywords)
     result = media_pool_item.SetMetadata("Keywords", joined)
