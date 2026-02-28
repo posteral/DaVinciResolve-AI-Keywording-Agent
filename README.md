@@ -39,6 +39,18 @@ Start Ollama (required for AI suggestions; the rest of the UI works without it):
 ollama serve
 ```
 
+Verify the model is available (you should see `moondream` listed):
+
+```bash
+ollama list
+```
+
+If it's missing, pull it:
+
+```bash
+ollama pull moondream
+```
+
 Then start the app:
 
 ```bash
