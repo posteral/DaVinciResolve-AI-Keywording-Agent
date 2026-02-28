@@ -401,6 +401,10 @@
     <div id="status-area">
       <p class="idle">Click Refresh to load the currently selected clip.</p>
     </div>
+    <div id="ai-suggestion-section" style="display:none;margin-top:16px">
+      <div class="label">AI Suggested <span class="spinner" id="ai-spinner"></span></div>
+      <div id="ai-suggestion-container"></div>
+    </div>
   </div>
 
   <!-- Inline confirmation modal -->
@@ -422,6 +426,11 @@
     function renderClip(data) {
       const area = document.getElementById('status-area');
       currentKeywords = data.keywords.slice();
+      // Reset AI suggestion section (lives outside status-area, persists across renders)
+      const aiSection = document.getElementById('ai-suggestion-section');
+      const aiContainer = document.getElementById('ai-suggestion-container');
+      if (aiSection) aiSection.style.display = 'none';
+      if (aiContainer) aiContainer.innerHTML = '';
       area.innerHTML = `
         <div class="thumbnail-wrap">
           <img id="clip-thumbnail" alt="Clip thumbnail" style="display:none">
@@ -435,10 +444,6 @@
           <div class="label">Suggested</div>
           <div id="suggestions-container"></div>
         </div>
-        <div id="ai-suggestion-section" style="display:none;margin-top:16px">
-          <div class="label">AI Suggested</div>
-          <div id="ai-suggestion-container"></div>
-        </div>
         <div style="margin-top:16px">
           <div class="label">Add keyword</div>
           <div class="add-keyword-wrap">
@@ -450,13 +455,15 @@
       `;
       renderKeywords();
       if (data.unsorted) showSave();
-      loadThumbnail(data.file_path || null);
+      loadThumbnail(data.file_path || null, data.no_proxy || false);
       if (data.suggestions !== undefined) {
         renderSuggestions(data.suggestions);
       } else {
         loadSuggestions();
       }
-      loadAiSuggestion(data.file_path || null);
+      if (!data.no_proxy && data.file_path) {
+        loadAiSuggestion(data.file_path);
+      }
       initKeywordInput();
       document.getElementById('prev-btn').style.display = 'inline-flex';
       document.getElementById('next-btn').style.display = 'inline-flex';
@@ -643,10 +650,15 @@
       document.getElementById('saved-msg').style.display = 'none';
     }
 
-    async function loadThumbnail(filePath) {
+    async function loadThumbnail(filePath, noProxy) {
       const img = document.getElementById('clip-thumbnail');
       const placeholder = document.getElementById('thumb-placeholder');
       if (!img || !placeholder) return;
+
+      if (noProxy) {
+        placeholder.textContent = 'No proxy available';
+        return;
+      }
 
       try {
         const url = filePath
@@ -726,6 +738,10 @@
     }
 
     async function loadAiSuggestion(filePath) {
+      const aiSpinner = document.getElementById('ai-spinner');
+      const aiSection = document.getElementById('ai-suggestion-section');
+      if (aiSection) aiSection.style.display = 'block';
+      if (aiSpinner) aiSpinner.style.display = 'inline-block';
       try {
         let url = '/api/clip/ai-suggestion';
         if (filePath) {
@@ -739,6 +755,12 @@
         renderAiSuggestions(data.suggestions);
       } catch (_) {
         // best-effort — fail silently
+      } finally {
+        if (aiSpinner) aiSpinner.style.display = 'none';
+        const container = document.getElementById('ai-suggestion-container');
+        if (aiSection && container && container.children.length === 0) {
+          aiSection.style.display = 'none';
+        }
       }
     }
 
