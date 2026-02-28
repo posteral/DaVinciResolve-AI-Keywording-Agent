@@ -440,6 +440,11 @@ def ai_suggest_keywords(
     if not frames:
         return []
 
+    marker = "ProxyMedia/"
+    idx = file_path.find(marker)
+    display_path = file_path[idx + len(marker):] if idx != -1 else file_path
+    path_context = f"The file path of this clip is: {display_path}. "
+
     if existing_keywords:
         kw_context = (
             f"This clip already has these keywords: {', '.join(existing_keywords)}. "
@@ -451,6 +456,7 @@ def ai_suggest_keywords(
     payload = json.dumps({
         "model": model,
         "prompt": (
+            f"{path_context}"
             f"{kw_context}"
             "Each keyword is a phrase of 1-4 words describing a distinct aspect of the clip. "
             "If a subject is a specific named place, landmark, or person use Title Case. "
