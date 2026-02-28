@@ -1239,6 +1239,17 @@
 
         applyBtn.textContent = 'Applied ✓';
         applyBtn.disabled = true;
+
+        // Update status badges to "known" for all cards that had a name assigned
+        cards.forEach(card => {
+          const input = card.querySelector('.identity-assign-input');
+          if (!input || !input.value.trim()) return;
+          const badge = card.querySelector('.identity-status');
+          if (badge) {
+            badge.className = 'identity-status known';
+            badge.textContent = 'known';
+          }
+        });
       } catch (_) {
         applyBtn.disabled = false;
         applyBtn.textContent = 'Apply identities to keywords';
