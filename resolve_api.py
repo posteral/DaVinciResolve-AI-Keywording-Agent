@@ -580,11 +580,9 @@ def frames_from_file_path(
     else:
         seeks = [0.0]  # unknown duration — fall back to start
 
-    frames = []
-    for seek in seeks:
-        frame = _extract_frame(file_path, ffmpeg, seek)
-        if frame:
-            frames.append(frame)
-    return frames
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=len(seeks)) as pool:
+        results = list(pool.map(lambda s: _extract_frame(file_path, ffmpeg, s), seeks))
+    return [f for f in results if f]
 
 

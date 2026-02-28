@@ -322,8 +322,8 @@ class TestFramesFromFilePath(unittest.TestCase):
 
     def test_seeks_at_correct_percentages(self):
         _, mock_sub = self._run(duration_stdout=b"100.0")
-        seek_args = [call[0][0][2] for call in mock_sub.run.call_args_list[1:]]
-        self.assertEqual(seek_args, ["10.0", "30.0", "50.0", "70.0", "90.0"])
+        seek_args = {call[0][0][2] for call in mock_sub.run.call_args_list[1:]}
+        self.assertEqual(seek_args, {"10.0", "30.0", "50.0", "70.0", "90.0"})
 
     def test_falls_back_to_single_frame_when_duration_unknown(self):
         frames, mock_sub = self._run(ffprobe_rc=1, duration_stdout=b"")
