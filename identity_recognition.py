@@ -60,6 +60,8 @@ def detect_faces_in_frames(
         try:
             rgb = _frame_to_rgb(png)
             locations = fr.face_locations(rgb, model="hog")
+            if not locations:
+                locations = fr.face_locations(rgb, model="cnn")
             encodings = fr.face_encodings(rgb, locations)
             for location, encoding in zip(locations, encodings):
                 crop = _crop_face(rgb, location)
