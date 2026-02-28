@@ -261,7 +261,7 @@ def navigate_clip(resolve: Any, direction: int) -> Any | None:
 
 
 def suggest_keywords(resolve: Any, current_item: Any = None) -> tuple[list[str], dict]:
-    """Return up to 3 keyword suggestions for the current clip.
+    """Return up to 5 keyword suggestions for the current clip.
 
     Keywords are scored by proximity: each neighbouring clip at sequential
     distance d contributes 1/d to every keyword it carries.  Only clips
@@ -331,7 +331,7 @@ def suggest_keywords(resolve: Any, current_item: Any = None) -> tuple[list[str],
                     first_seen[key] = kw
 
     ranked = sorted(scores.keys(), key=lambda k: -scores[k])
-    suggestions = [first_seen[k] for k in ranked[:3]]
+    suggestions = [first_seen[k] for k in ranked[:5]]
 
     debug = {
         "clip": current_item.GetName(),
