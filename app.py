@@ -33,10 +33,17 @@ def clip():
                 return jsonify({"error": "No clip selected"}), 404
             name = item.GetName() or "<unnamed clip>"
             keywords = resolve_api.get_keywords(item)
+            keywords_stored = resolve_api._normalize_keywords(
+                item.GetMetadata("Keywords") or item.GetClipProperty("Keywords") or ""
+            )
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 
-    return jsonify({"clip": name, "keywords": keywords})
+    return jsonify({
+        "clip": name,
+        "keywords": keywords,
+        "unsorted": keywords_stored != keywords,
+    })
 
 
 @app.route("/api/clip/thumbnail")
@@ -124,10 +131,17 @@ def navigate_clip():
                 return jsonify({"error": "No more clips"}), 404
             name = item.GetName() or "<unnamed clip>"
             keywords = resolve_api.get_keywords(item)
+            keywords_stored = resolve_api._normalize_keywords(
+                item.GetMetadata("Keywords") or item.GetClipProperty("Keywords") or ""
+            )
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 
-    return jsonify({"clip": name, "keywords": keywords})
+    return jsonify({
+        "clip": name,
+        "keywords": keywords,
+        "unsorted": keywords_stored != keywords,
+    })
 
 
 @app.route("/api/clip/keywords", methods=["POST"])
