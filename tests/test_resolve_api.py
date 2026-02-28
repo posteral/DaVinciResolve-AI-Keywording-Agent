@@ -178,7 +178,7 @@ class TestSuggestKeywords(unittest.TestCase):
         resolve.GetProjectManager.return_value = project_manager
         return resolve
 
-    def test_returns_top_3_by_proximity_score(self):
+    def test_returns_top_5_by_proximity_score(self):
         # Layout (sorted by date, cur at index 2):
         #   n1(d=2): alpha, beta   weight=0.5
         #   n2(d=1): alpha, beta   weight=1.0
@@ -199,8 +199,9 @@ class TestSuggestKeywords(unittest.TestCase):
         suggestions = resolve_api.suggest_keywords(resolve)[0]
         self.assertEqual(suggestions[0], "alpha")  # score=3.333
         self.assertEqual(suggestions[1], "beta")   # score=2.5
-        self.assertEqual(suggestions[2], "gamma")  # score=1.0 > delta 0.5
-        self.assertEqual(len(suggestions), 3)
+        self.assertEqual(suggestions[2], "gamma")  # score=1.0
+        self.assertEqual(suggestions[3], "delta")  # score=0.5
+        self.assertEqual(len(suggestions), 4)       # only 4 unique candidates
 
     def test_proximity_prefers_close_neighbours(self):
         # "near" appears only on adjacent clips; "far" appears on many but distant ones.
@@ -252,7 +253,7 @@ class TestSuggestKeywords(unittest.TestCase):
         resolve.GetProjectManager.return_value = project_manager
         self.assertEqual(resolve_api.suggest_keywords(resolve)[0], [])
 
-    def test_fewer_than_3_candidates_returns_what_exists(self):
+    def test_fewer_than_5_candidates_returns_what_exists(self):
         clips = [
             self._make_clip("n1", ["alpha"], "01/01/2024 10:00:00"),
             self._make_clip("cur", [], "01/01/2024 12:00:00"),
