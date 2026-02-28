@@ -861,6 +861,29 @@
         if (input.value) renderList(getMatches(input.value));
       });
     }
+
+    // ── Global keyboard shortcuts ─────────────────────────────────────────────
+    document.addEventListener('keydown', (e) => {
+      // Ignore when focus is inside a text input or textarea.
+      const tag = document.activeElement && document.activeElement.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      const prevVisible = document.getElementById('prev-btn') &&
+                          document.getElementById('prev-btn').style.display !== 'none';
+
+      if ((e.key === 'ArrowLeft' || e.key === 'ArrowUp') && prevVisible) {
+        e.preventDefault();
+        navigate('prev');
+      } else if ((e.key === 'ArrowRight' || e.key === 'ArrowDown') && prevVisible) {
+        e.preventDefault();
+        navigate('next');
+      } else if (e.key === 's' || e.key === 'S') {
+        const saveBtn = document.getElementById('save-btn');
+        if (saveBtn && saveBtn.style.display !== 'none' && !saveBtn.disabled) {
+          save();
+        }
+      }
+    });
   </script>
 </body>
 </html>
