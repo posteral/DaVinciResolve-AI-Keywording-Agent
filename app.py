@@ -9,6 +9,10 @@ app = Flask(__name__)
 _resolve_lock = threading.Lock()
 _resolve_obj = None
 
+# Keyword catalog: populated on first request, refreshed after every Save.
+_keyword_catalog: list[str] = []
+_catalog_loaded = False
+
 
 def _get_resolve():
     """Return the cached resolve object. Must be called with _resolve_lock held."""
@@ -114,6 +118,20 @@ def clip_ai_suggestion():
     return jsonify({"suggestions": suggestions})
 
 
+@app.route("/api/keywords/catalog")
+def keywords_catalog():
+    global _keyword_catalog, _catalog_loaded
+    if not _catalog_loaded:
+        try:
+            with _resolve_lock:
+                resolve = _get_resolve()
+                _keyword_catalog = resolve_api.get_all_project_keywords(resolve)
+            _catalog_loaded = True
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 500
+    return jsonify({"keywords": _keyword_catalog})
+
+
 @app.route("/api/clip/navigate", methods=["POST"])
 def navigate_clip():
     body = request.get_json(silent=True) or {}
@@ -148,6 +166,7 @@ def navigate_clip():
 
 @app.route("/api/clip/keywords", methods=["POST"])
 def set_keywords():
+    global _keyword_catalog, _catalog_loaded
     body = request.get_json(silent=True) or {}
     keywords = body.get("keywords")
     if not isinstance(keywords, list):
@@ -166,6 +185,15 @@ def set_keywords():
 
     if not ok:
         return jsonify({"error": "Resolve rejected the write. Check External Scripting is enabled."}), 500
+
+    # Refresh catalog so newly added keywords appear in autocomplete immediately.
+    try:
+        with _resolve_lock:
+            resolve = _get_resolve()
+            _keyword_catalog = resolve_api.get_all_project_keywords(resolve)
+        _catalog_loaded = True
+    except Exception:
+        pass  # stale catalog is fine; user can still type freely
 
     return jsonify({"clip": name, "keywords": keywords})
 

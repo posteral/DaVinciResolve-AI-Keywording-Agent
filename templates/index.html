@@ -253,6 +253,55 @@
       font-weight: 500;
     }
 
+    .add-keyword-wrap {
+      margin-top: 16px;
+      position: relative;
+    }
+
+    .add-keyword-input {
+      width: 100%;
+      background: #2a2a2a;
+      color: #e8e8e8;
+      border: 1px solid #444;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 0.875rem;
+      font-family: inherit;
+    }
+    .add-keyword-input:focus {
+      outline: none;
+      border-color: #3a7bd5;
+    }
+
+    .autocomplete-list {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #2e2e2e;
+      border: 1px solid #444;
+      border-top: none;
+      border-radius: 0 0 6px 6px;
+      max-height: 180px;
+      overflow-y: auto;
+      z-index: 50;
+      display: none;
+    }
+
+    .autocomplete-list.open { display: block; }
+
+    .autocomplete-item {
+      padding: 7px 12px;
+      font-size: 0.875rem;
+      color: #d0d0d0;
+      cursor: pointer;
+    }
+    .autocomplete-item:hover,
+    .autocomplete-item.active {
+      background: #3a3a3a;
+      color: #e8e8e8;
+    }
+
     /* Modal */
     #modal {
       display: none;
@@ -387,12 +436,21 @@
           <div class="label">AI Suggested</div>
           <div id="ai-suggestion-container"></div>
         </div>
+        <div style="margin-top:16px">
+          <div class="label">Add keyword</div>
+          <div class="add-keyword-wrap">
+            <input type="text" id="kw-input" class="add-keyword-input"
+                   placeholder="Type a keyword and press Enter…" autocomplete="off">
+            <ul id="autocomplete-list" class="autocomplete-list" role="listbox"></ul>
+          </div>
+        </div>
       `;
       renderKeywords();
       if (data.unsorted) showSave();
       loadThumbnail();
       loadSuggestions();
       loadAiSuggestion();
+      initKeywordInput();
       document.getElementById('prev-btn').style.display = 'inline-flex';
       document.getElementById('next-btn').style.display = 'inline-flex';
     }
@@ -675,6 +733,108 @@
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
+    }
+
+    // ── Keyword input + autocomplete ──────────────────────────────────────────
+
+    let _catalog = null; // null = not loaded yet; [] = loaded but empty
+
+    async function _loadCatalog() {
+      if (_catalog !== null) return;
+      try {
+        const res = await fetch('/api/keywords/catalog');
+        if (!res.ok) { _catalog = []; return; }
+        const data = await res.json();
+        _catalog = data.keywords || [];
+      } catch (_) {
+        _catalog = [];
+      }
+    }
+
+    function initKeywordInput() {
+      const input = document.getElementById('kw-input');
+      const list = document.getElementById('autocomplete-list');
+      if (!input || !list) return;
+
+      let activeIndex = -1;
+
+      _loadCatalog(); // kick off catalog load in background
+
+      function getMatches(query) {
+        if (!query || !_catalog) return [];
+        const q = query.toLowerCase();
+        const existingLower = currentKeywords.map(k => k.toLowerCase());
+        return _catalog
+          .filter(k => k.toLowerCase().includes(q) && !existingLower.includes(k.toLowerCase()))
+          .slice(0, 8);
+      }
+
+      function renderList(matches) {
+        activeIndex = -1;
+        list.innerHTML = '';
+        if (matches.length === 0) { list.classList.remove('open'); return; }
+        matches.forEach((kw, i) => {
+          const li = document.createElement('li');
+          li.className = 'autocomplete-item';
+          li.setAttribute('role', 'option');
+          li.textContent = kw;
+          li.addEventListener('mousedown', (e) => {
+            e.preventDefault(); // keep input focused
+            commitKeyword(kw);
+          });
+          list.appendChild(li);
+        });
+        list.classList.add('open');
+      }
+
+      function closeList() {
+        list.classList.remove('open');
+        list.innerHTML = '';
+        activeIndex = -1;
+      }
+
+      function commitKeyword(kw) {
+        const trimmed = kw.trim();
+        if (!trimmed) return;
+        addSuggestion(trimmed, { disabled: false }); // reuse existing flow; dummy btn obj
+        input.value = '';
+        closeList();
+      }
+
+      input.addEventListener('input', () => {
+        renderList(getMatches(input.value));
+      });
+
+      input.addEventListener('keydown', (e) => {
+        const items = list.querySelectorAll('.autocomplete-item');
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          activeIndex = Math.min(activeIndex + 1, items.length - 1);
+          items.forEach((el, i) => el.classList.toggle('active', i === activeIndex));
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          activeIndex = Math.max(activeIndex - 1, -1);
+          items.forEach((el, i) => el.classList.toggle('active', i === activeIndex));
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (activeIndex >= 0 && items[activeIndex]) {
+            commitKeyword(items[activeIndex].textContent);
+          } else {
+            commitKeyword(input.value);
+          }
+        } else if (e.key === 'Escape') {
+          closeList();
+        }
+      });
+
+      input.addEventListener('blur', () => {
+        // Delay so mousedown on list items fires first.
+        setTimeout(closeList, 150);
+      });
+
+      input.addEventListener('focus', () => {
+        if (input.value) renderList(getMatches(input.value));
+      });
     }
   </script>
 </body>

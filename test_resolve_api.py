@@ -358,5 +358,64 @@ class TestAiSuggestKeywords(unittest.TestCase):
         self.assertEqual(result, [])
 
 
+class TestGetAllProjectKeywords(unittest.TestCase):
+    def _make_clip(self, keywords_str: str) -> MagicMock:
+        clip = MagicMock()
+        clip.GetMetadata.side_effect = lambda key=None: (
+            {"Keywords": keywords_str} if key is None else (keywords_str if key == "Keywords" else None)
+        )
+        clip.GetClipProperty.return_value = ""
+        return clip
+
+    def _make_folder(self, clips, subfolders=None) -> MagicMock:
+        folder = MagicMock()
+        folder.GetClipList.return_value = clips
+        folder.GetSubFolderList.return_value = subfolders or []
+        return folder
+
+    def _make_resolve(self, root_folder) -> MagicMock:
+        resolve = MagicMock()
+        project = resolve.GetProjectManager.return_value.GetCurrentProject.return_value
+        media_pool = project.GetMediaPool.return_value
+        media_pool.GetRootFolder.return_value = root_folder
+        return resolve
+
+    def test_collects_keywords_from_root_folder(self):
+        clips = [self._make_clip("city, night"), self._make_clip("interview")]
+        root = self._make_folder(clips)
+        resolve = self._make_resolve(root)
+        result = resolve_api.get_all_project_keywords(resolve)
+        self.assertEqual(result, ["city", "interview", "night"])
+
+    def test_collects_keywords_from_subfolders_recursively(self):
+        sub_clips = [self._make_clip("landscape, sunset")]
+        sub = self._make_folder(sub_clips)
+        root_clips = [self._make_clip("city")]
+        root = self._make_folder(root_clips, subfolders=[sub])
+        resolve = self._make_resolve(root)
+        result = resolve_api.get_all_project_keywords(resolve)
+        self.assertEqual(result, ["city", "landscape", "sunset"])
+
+    def test_deduplicates_across_clips(self):
+        clips = [self._make_clip("city, night"), self._make_clip("city, interview")]
+        root = self._make_folder(clips)
+        resolve = self._make_resolve(root)
+        result = resolve_api.get_all_project_keywords(resolve)
+        self.assertEqual(result.count("city"), 1)
+
+    def test_returns_empty_when_no_project(self):
+        resolve = MagicMock()
+        resolve.GetProjectManager.return_value.GetCurrentProject.return_value = None
+        result = resolve_api.get_all_project_keywords(resolve)
+        self.assertEqual(result, [])
+
+    def test_sorted_case_insensitive(self):
+        clips = [self._make_clip("Zoo, apple, Banana")]
+        root = self._make_folder(clips)
+        resolve = self._make_resolve(root)
+        result = resolve_api.get_all_project_keywords(resolve)
+        self.assertEqual(result, ["apple", "Banana", "Zoo"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -270,6 +270,41 @@ def suggest_keywords(resolve: Any) -> tuple[list[str], dict]:
     return suggestions, debug
 
 
+def _collect_folder_keywords(folder: Any, seen: set[str], result: list[str]) -> None:
+    """Recursively walk a Media Pool folder tree and collect all unique keywords."""
+    for clip in _as_sequence(folder.GetClipList()):
+        for kw in get_keywords(clip):
+            low = kw.lower()
+            if low not in seen:
+                seen.add(low)
+                result.append(kw)
+    for subfolder in _as_sequence(folder.GetSubFolderList()):
+        _collect_folder_keywords(subfolder, seen, result)
+
+
+def get_all_project_keywords(resolve: Any) -> list[str]:
+    """Return a sorted, deduplicated list of all keywords used across the
+    entire project media pool (all folders, recursively)."""
+    project_manager = resolve.GetProjectManager()
+    if project_manager is None:
+        return []
+    project = project_manager.GetCurrentProject()
+    if project is None:
+        return []
+    media_pool = project.GetMediaPool()
+    if media_pool is None:
+        return []
+
+    root = media_pool.GetRootFolder()
+    if root is None:
+        return []
+
+    seen: set[str] = set()
+    result: list[str] = []
+    _collect_folder_keywords(root, seen, result)
+    return sorted(result, key=str.casefold)
+
+
 def _normalise_ai_keyword(
     text: str, existing_keywords: list[str] | None = None
 ) -> str:
