@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.16.2] - 2026-02-28
+
+### Fixed
+
+- Filmstrip hover zoom now renders above sibling frames instead of behind them.
+  The wrapper's `z-index` is raised on hover (not just the image inside it),
+  and `#filmstrip` has `overflow: visible` so the scaled frame escapes the strip.
+
 ## [0.16.1] - 2026-02-28
 
 ### Added
