@@ -455,13 +455,15 @@
       `;
       renderKeywords();
       if (data.unsorted) showSave();
-      loadThumbnail(data.file_path || null);
+      loadThumbnail(data.file_path || null, data.no_proxy || false);
       if (data.suggestions !== undefined) {
         renderSuggestions(data.suggestions);
       } else {
         loadSuggestions();
       }
-      loadAiSuggestion(data.file_path || null);
+      if (!data.no_proxy && data.file_path) {
+        loadAiSuggestion(data.file_path);
+      }
       initKeywordInput();
       document.getElementById('prev-btn').style.display = 'inline-flex';
       document.getElementById('next-btn').style.display = 'inline-flex';
@@ -648,10 +650,15 @@
       document.getElementById('saved-msg').style.display = 'none';
     }
 
-    async function loadThumbnail(filePath) {
+    async function loadThumbnail(filePath, noProxy) {
       const img = document.getElementById('clip-thumbnail');
       const placeholder = document.getElementById('thumb-placeholder');
       if (!img || !placeholder) return;
+
+      if (noProxy) {
+        placeholder.textContent = 'No proxy available';
+        return;
+      }
 
       try {
         const url = filePath

@@ -97,11 +97,7 @@ def clip():
             keywords_stored = resolve_api._normalize_keywords(
                 item.GetMetadata("Keywords") or item.GetClipProperty("Keywords") or ""
             )
-            file_path = (
-                item.GetClipProperty("Proxy Media Path")
-                or item.GetClipProperty("File Path")
-                or ""
-            )
+            proxy_path = item.GetClipProperty("Proxy Media Path") or ""
             suggestions, debug = resolve_api.suggest_keywords(resolve, current_item=item)
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
@@ -113,7 +109,8 @@ def clip():
         "clip": name,
         "keywords": keywords,
         "unsorted": unsorted,
-        "file_path": file_path,
+        "file_path": proxy_path,
+        "no_proxy": not bool(proxy_path),
         "suggestions": suggestions,
     })
 
@@ -124,18 +121,14 @@ def clip_thumbnail():
     file_path = request.args.get("path", "").strip()
 
     if not file_path:
-        # Fall back: grab file path under the lock.
+        # Fall back: grab proxy path under the lock.
         try:
             with _resolve_lock:
                 resolve = _get_resolve()
                 item = resolve_api.get_selected_media_pool_item(resolve)
                 if item is None:
                     return "", 204
-                file_path = (
-                    item.GetClipProperty("Proxy Media Path")
-                    or item.GetClipProperty("File Path")
-                    or ""
-                )
+                file_path = item.GetClipProperty("Proxy Media Path") or ""
         except Exception:
             return "", 204
 
@@ -176,11 +169,7 @@ def clip_ai_suggestion():
                 item = resolve_api.get_selected_media_pool_item(resolve)
                 if item is None:
                     return jsonify({"suggestions": []})
-                file_path = (
-                    item.GetClipProperty("Proxy Media Path")
-                    or item.GetClipProperty("File Path")
-                    or ""
-                )
+                file_path = item.GetClipProperty("Proxy Media Path") or ""
                 existing_keywords = resolve_api.get_keywords(item)
         except Exception as exc:
             return jsonify({"error": str(exc)}), 500
@@ -234,11 +223,7 @@ def navigate_clip():
             keywords_stored = resolve_api._normalize_keywords(
                 item.GetMetadata("Keywords") or item.GetClipProperty("Keywords") or ""
             )
-            file_path = (
-                item.GetClipProperty("Proxy Media Path")
-                or item.GetClipProperty("File Path")
-                or ""
-            )
+            proxy_path = item.GetClipProperty("Proxy Media Path") or ""
             suggestions, debug = resolve_api.suggest_keywords(resolve, current_item=item)
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
@@ -248,7 +233,8 @@ def navigate_clip():
         "clip": name,
         "keywords": keywords,
         "unsorted": keywords_stored != keywords,
-        "file_path": file_path,
+        "file_path": proxy_path,
+        "no_proxy": not bool(proxy_path),
         "suggestions": suggestions,
     })
 
