@@ -133,10 +133,10 @@
       position: relative;
     }
 
-    .identity-card-split-btn,
-    .identity-card-dismiss-btn {
+    .identity-card-split-btn {
       position: absolute;
       top: 8px;
+      right: 8px;
       background: none;
       border: 1px solid #555;
       border-radius: 3px;
@@ -146,10 +146,22 @@
       cursor: pointer;
       line-height: 1.4;
     }
-    .identity-card-split-btn   { right: 8px; }
-    .identity-card-dismiss-btn { left: 8px; }
-    .identity-card-split-btn:hover,
-    .identity-card-dismiss-btn:hover { border-color: #888; color: #ccc; }
+    .identity-card-split-btn:hover { border-color: #888; color: #ccc; }
+
+    .identity-card-dismiss-btn {
+      display: block;
+      width: 100%;
+      margin-top: 8px;
+      background: none;
+      border: 1px solid #4a2a2a;
+      border-radius: 4px;
+      color: #885555;
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      cursor: pointer;
+      text-align: center;
+    }
+    .identity-card-dismiss-btn:hover { border-color: #7a3a3a; color: #bb7777; }
 
     .identity-card-faces {
       display: flex;
@@ -1219,8 +1231,8 @@
     function _addDismissButton(card) {
       const btn = document.createElement('button');
       btn.className = 'identity-card-dismiss-btn';
-      btn.textContent = '×';
-      btn.title = 'Dismiss — discard this detection. Will not be added as a keyword or saved to the identity library.';
+      btn.textContent = 'Dismiss (don\'t add, don\'t save)';
+      btn.title = 'Discard this detection. Will not be added as a keyword or saved to the identity library.';
       btn.addEventListener('click', () => {
         card.remove();
         const remaining = document.querySelectorAll('.identity-card');
