@@ -867,6 +867,7 @@
       // Ignore when focus is inside a text input or textarea.
       const tag = document.activeElement && document.activeElement.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      console.log('[shortcut]', e.key, 'activeElement:', tag);
 
       if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
         e.preventDefault();
