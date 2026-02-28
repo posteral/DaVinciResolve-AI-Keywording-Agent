@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-02-28
+
+### Changed
+
+- Proximity keyword suggestions now show up to **5** candidates (was 3).
+
 ## [0.14.0] - 2026-02-28
 
 ### Changed
