@@ -338,7 +338,7 @@ def suggest_keywords(resolve: Any, current_item: Any = None) -> tuple[list[str],
                     first_seen[key] = kw
 
     ranked = sorted(best_score.keys(), key=lambda k: -best_score[k])
-    suggestions = [first_seen[k] for k in ranked[:5]]
+    suggestions = [first_seen[k] for k in ranked[:10]]
 
     debug = {
         "clip": current_item.GetName(),
@@ -449,7 +449,7 @@ def ai_suggest_keywords(
     existing_keywords: list[str] | None = None,
     proximity_suggestions: list[str] | None = None,
     catalog: list[str] | None = None,
-    n: int = 5,
+    n: int = 10,
 ) -> list[str]:
     """Return up to n AI-generated keyword suggestions for a clip by sending
     multiple sampled frames to a locally running Ollama VLM. Returns [] if
