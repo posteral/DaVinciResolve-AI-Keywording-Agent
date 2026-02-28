@@ -232,5 +232,38 @@ class TestSuggestKeywords(unittest.TestCase):
         self.assertIn("beta", suggestions)
 
 
+class TestAiSuggestKeyword(unittest.TestCase):
+    def _make_urlopen(self, response_text):
+        import json
+        body = json.dumps({"response": response_text}).encode()
+        cm = MagicMock()
+        cm.__enter__ = lambda s: MagicMock(read=MagicMock(return_value=body))
+        cm.__exit__ = MagicMock(return_value=False)
+        return cm
+
+    def test_returns_keyword_from_ollama(self):
+        with patch("resolve_api.thumbnail_from_file_path", return_value=b"PNG"), \
+             patch("resolve_api.urllib.request.urlopen", return_value=self._make_urlopen("mountain landscape")):
+            result = resolve_api.ai_suggest_keyword("/fake/clip.mov")
+        self.assertEqual(result, "mountain landscape")
+
+    def test_returns_none_when_ollama_unreachable(self):
+        with patch("resolve_api.thumbnail_from_file_path", return_value=b"PNG"), \
+             patch("resolve_api.urllib.request.urlopen", side_effect=OSError("connection refused")):
+            result = resolve_api.ai_suggest_keyword("/fake/clip.mov")
+        self.assertIsNone(result)
+
+    def test_returns_none_when_thumbnail_unavailable(self):
+        with patch("resolve_api.thumbnail_from_file_path", return_value=None):
+            result = resolve_api.ai_suggest_keyword("/fake/clip.mov")
+        self.assertIsNone(result)
+
+    def test_returns_none_when_response_is_empty(self):
+        with patch("resolve_api.thumbnail_from_file_path", return_value=b"PNG"), \
+             patch("resolve_api.urllib.request.urlopen", return_value=self._make_urlopen("")):
+            result = resolve_api.ai_suggest_keyword("/fake/clip.mov")
+        self.assertIsNone(result)
+
+
 if __name__ == "__main__":
     unittest.main()

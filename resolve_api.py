@@ -3,6 +3,7 @@ from __future__ import annotations
 import subprocess
 import sys
 import os
+import urllib.request
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable
@@ -253,6 +254,41 @@ def suggest_keywords(resolve: Any, n_neighbours: int = 10) -> list[str]:
 
     ranked = sorted(counts.keys(), key=lambda k: -counts[k])
     return [first_seen[k] for k in ranked[:3]]
+
+
+def ai_suggest_keyword(file_path: str, model: str = "moondream") -> str | None:
+    """Return a single AI-generated keyword for a clip by sending its thumbnail
+    to a locally running Ollama VLM. Returns None if Ollama is unreachable."""
+    import base64
+    import json
+
+    png = thumbnail_from_file_path(file_path)
+    if not png:
+        return None
+
+    payload = json.dumps({
+        "model": model,
+        "prompt": (
+            "Describe the main subject of this image in 2-5 words suitable as a "
+            "media archive keyword. Reply with only the keyword phrase, no punctuation."
+        ),
+        "images": [base64.b64encode(png).decode()],
+        "stream": False,
+    }).encode()
+
+    try:
+        req = urllib.request.Request(
+            "http://localhost:11434/api/generate",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            result = json.loads(resp.read())
+        text = result.get("response", "").strip()
+        return text if text else None
+    except Exception:
+        return None
 
 
 def _ffmpeg_path() -> str:
