@@ -1065,10 +1065,11 @@
       if (aiSection) aiSection.style.display = 'block';
       if (aiSpinner) aiSpinner.style.display = 'inline-block';
       try {
+        const catalog = await _loadCatalog();
         const body = { path: filePath };
         if (currentKeywords.length) body.keywords = currentKeywords;
         if (proximitySuggestions.length) body.suggestions = proximitySuggestions;
-        if (_catalog && _catalog.length) body.catalog = _catalog;
+        if (catalog && catalog.length) body.catalog = catalog;
         const res = await fetch('/api/clip/ai-suggestion', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1106,19 +1107,31 @@
 
     // ── Keyword input + autocomplete ──────────────────────────────────────────
 
-    let _catalog = null; // null = not yet loaded with data
+    let _catalog = null;       // null = not yet fetched with data
+    let _catalogPromise = null; // in-flight fetch, shared across concurrent callers
 
+    // Returns the catalog array (may be empty if server hasn't built it yet).
+    // Multiple concurrent callers share one in-flight request.
+    // If the server returned an empty list, the next call will retry.
     async function _loadCatalog() {
-      if (_catalog !== null && _catalog.length > 0) return;
-      try {
-        const res = await fetch('/api/keywords/catalog');
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.keywords && data.keywords.length > 0) {
-          _catalog = data.keywords;
-        }
-        // If empty, leave _catalog as null so the next input event retries.
-      } catch (_) { /* leave null, will retry */ }
+      if (_catalog !== null && _catalog.length > 0) return _catalog;
+      if (_catalogPromise) return _catalogPromise;
+      _catalogPromise = (async () => {
+        try {
+          const res = await fetch('/api/keywords/catalog');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.keywords && data.keywords.length > 0) {
+              _catalog = data.keywords;
+            }
+            // If empty, leave _catalog as null so the next call retries
+            // (server may still be building the catalog in the background).
+          }
+        } catch (_) { /* leave _catalog null, will retry next call */ }
+        _catalogPromise = null;
+        return _catalog || [];
+      })();
+      return _catalogPromise;
     }
 
     function initKeywordInput() {
