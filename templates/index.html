@@ -756,18 +756,19 @@
 
     // ── Keyword input + autocomplete ──────────────────────────────────────────
 
-    let _catalog = null; // null = not loaded yet; [] = loaded but empty
+    let _catalog = null; // null = not yet loaded with data
 
     async function _loadCatalog() {
-      if (_catalog !== null) return;
+      if (_catalog !== null && _catalog.length > 0) return;
       try {
         const res = await fetch('/api/keywords/catalog');
-        if (!res.ok) { _catalog = []; return; }
+        if (!res.ok) return;
         const data = await res.json();
-        _catalog = data.keywords || [];
-      } catch (_) {
-        _catalog = [];
-      }
+        if (data.keywords && data.keywords.length > 0) {
+          _catalog = data.keywords;
+        }
+        // If empty, leave _catalog as null so the next input event retries.
+      } catch (_) { /* leave null, will retry */ }
     }
 
     function initKeywordInput() {
@@ -821,6 +822,7 @@
       }
 
       input.addEventListener('input', () => {
+        if (!_catalog || _catalog.length === 0) _loadCatalog();
         renderList(getMatches(input.value));
       });
 
