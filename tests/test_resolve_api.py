@@ -266,11 +266,11 @@ class TestSuggestKeywords(unittest.TestCase):
         self.assertIn("beta", suggestions)
 
     def test_excludes_undated_clips(self):
-        # Clips with no parseable date get datetime.max — they must not be
-        # treated as same-day neighbours of each other.
+        # Clips with no parseable date get datetime.max — excluded from scoring
+        # because their sort position is unreliable.
         clips = [
-            self._make_clip("undated1", ["wrong"],    ""),
-            self._make_clip("cur",      [],            ""),
+            self._make_clip("undated1", ["wrong"],     ""),
+            self._make_clip("cur",      [],             "01/01/2024 12:00:00"),
             self._make_clip("undated2", ["also_wrong"], ""),
         ]
         resolve = self._make_resolve(clips, "cur")
@@ -286,7 +286,10 @@ class TestSuggestKeywords(unittest.TestCase):
         suggestions = resolve_api.suggest_keywords(resolve)[0]
         self.assertIn("edinburgh", suggestions)
 
-    def test_excludes_clips_from_different_days(self):
+    def test_includes_adjacent_clips_from_different_days(self):
+        # The day-boundary filter has been removed: clips from any day are
+        # suggested based purely on sequential distance. An immediately adjacent
+        # clip (distance=1) should appear regardless of its calendar date.
         clips = [
             self._make_clip("yesterday", ["other_day"], "01/01/2024 23:00:00"),
             self._make_clip("cur",       [],             "01/02/2024 10:00:00"),
@@ -295,7 +298,7 @@ class TestSuggestKeywords(unittest.TestCase):
         resolve = self._make_resolve(clips, "cur")
         suggestions = resolve_api.suggest_keywords(resolve)[0]
         self.assertIn("same_day", suggestions)
-        self.assertNotIn("other_day", suggestions)
+        self.assertIn("other_day", suggestions)
 
 
 class TestNormaliseAiKeyword(unittest.TestCase):

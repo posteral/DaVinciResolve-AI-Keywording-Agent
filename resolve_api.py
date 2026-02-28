@@ -264,8 +264,9 @@ def suggest_keywords(resolve: Any, current_item: Any = None) -> tuple[list[str],
     """Return up to 5 keyword suggestions for the current clip.
 
     Keywords are scored by proximity: each neighbouring clip at sequential
-    distance d contributes 1/d to every keyword it carries.  Only clips
-    recorded on the same calendar day in the same folder are considered.
+    distance d contributes 1/d to every keyword it carries. All dated clips
+    in the folder are considered — the distance weighting naturally down-ranks
+    distant clips without needing a day boundary filter.
     Keywords already on the current clip are excluded.
 
     If current_item is provided it is used directly, avoiding a redundant
@@ -294,18 +295,15 @@ def suggest_keywords(resolve: Any, current_item: Any = None) -> tuple[list[str],
         return [], {"reason": "no clips in folder"}
 
     current_id = current_item.GetMediaId()
-    current_date_key = date_by_id.get(current_id, datetime.max)
-
-    if current_date_key == datetime.max:
-        return [], {"reason": "no parseable date", "clip": current_item.GetName()}
-
-    current_date = current_date_key.date()
     current_kws = {k.lower() for k in keywords_by_id.get(current_id, [])}
 
     # Find the index of the current clip in the sorted list.
     current_index = next(
         (i for i, c in enumerate(clips) if c.GetMediaId() == current_id), None
     )
+
+    if current_index is None:
+        return [], {"reason": "current clip not found in folder"}
 
     scores: dict[str, float] = {}
     first_seen: dict[str, str] = {}
@@ -314,15 +312,11 @@ def suggest_keywords(resolve: Any, current_item: Any = None) -> tuple[list[str],
         cid = c.GetMediaId()
         if cid == current_id:
             continue
-        d = date_by_id.get(cid, datetime.max)
-        if d == datetime.max or d.date() != current_date:
+        # Skip clips with no parseable date — their sort position is unreliable.
+        if date_by_id.get(cid, datetime.max) == datetime.max:
             continue
         neighbour_count += 1
-        # Weight by inverse sequential distance when position is known.
-        if current_index is not None:
-            weight = 1.0 / abs(i - current_index)
-        else:
-            weight = 1.0
+        weight = 1.0 / abs(i - current_index)
         for kw in keywords_by_id.get(cid, []):
             key = kw.lower()
             if key not in current_kws:
@@ -335,7 +329,6 @@ def suggest_keywords(resolve: Any, current_item: Any = None) -> tuple[list[str],
 
     debug = {
         "clip": current_item.GetName(),
-        "date": str(current_date),
         "neighbours": neighbour_count,
         "suggestions": suggestions,
     }

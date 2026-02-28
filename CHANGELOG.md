@@ -4,6 +4,17 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.17.2] - 2026-02-28
+
+### Changed
+
+- Proximity keyword suggestions now include clips from any calendar day.
+  The same-day boundary filter has been removed; suggestions are ranked
+  purely by inverse sequential distance (1/d), so adjacent clips at
+  distance 1 are always surfaced regardless of their recording date.
+  Clips with no parseable date are still excluded as their sort position
+  is unreliable.
+
 ## [0.17.1] - 2026-02-28
 
 ### Changed
