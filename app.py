@@ -77,15 +77,24 @@ def clip():
             keywords_stored = resolve_api._normalize_keywords(
                 item.GetMetadata("Keywords") or item.GetClipProperty("Keywords") or ""
             )
+            file_path = (
+                item.GetClipProperty("Proxy Media Path")
+                or item.GetClipProperty("File Path")
+                or ""
+            )
+            suggestions, debug = resolve_api.suggest_keywords(resolve, current_item=item)
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 
     unsorted = keywords_stored != keywords
     print(f"[clip] stored={keywords_stored!r} sorted={keywords!r} unsorted={unsorted}")
+    print(f"[suggestions] {debug}")
     return jsonify({
         "clip": name,
         "keywords": keywords,
         "unsorted": unsorted,
+        "file_path": file_path,
+        "suggestions": suggestions,
     })
 
 

@@ -165,23 +165,40 @@ def _clip_date_key(clip: Any) -> tuple:
     return (datetime.max, clip.GetName() or "")
 
 
-# Cache for the sorted clip list of the current folder.
-# Key: (folder_name, clip_count) — cheap to compute, invalidates when the
-# folder changes or clips are added/removed.
-_sorted_clips_cache: tuple | None = None  # (cache_key, list[clip])
+# Cache for the current folder's clip data.
+# Stores (cache_key, sorted_clips, date_by_id, keywords_by_id) where:
+#   cache_key    = (folder_name, clip_count)
+#   sorted_clips = clips sorted by date
+#   date_by_id   = {media_id: datetime} — avoids re-calling GetClipProperty
+#   keywords_by_id = {media_id: list[str]} — avoids re-calling GetMetadata
+_folder_cache: tuple | None = None
+
+
+def _get_folder_cache(folder: Any) -> tuple[list, dict, dict]:
+    """Return (sorted_clips, date_by_id, keywords_by_id) for the folder,
+    building and caching all per-clip data in a single pass."""
+    global _folder_cache
+    raw = _as_sequence(folder.GetClipList())
+    cache_key = (folder.GetName(), len(raw))
+    if _folder_cache is not None and _folder_cache[0] == cache_key:
+        _, sorted_clips, date_by_id, keywords_by_id = _folder_cache
+        return sorted_clips, date_by_id, keywords_by_id
+
+    # Build per-clip data once.
+    date_by_id: dict[str, Any] = {}
+    keywords_by_id: dict[str, list[str]] = {}
+    for clip in raw:
+        mid = clip.GetMediaId()
+        date_by_id[mid] = _clip_date_key(clip)[0]
+        keywords_by_id[mid] = get_keywords(clip)
+
+    sorted_clips = sorted(raw, key=lambda c: (date_by_id[c.GetMediaId()], c.GetName() or ""))
+    _folder_cache = (cache_key, sorted_clips, date_by_id, keywords_by_id)
+    return sorted_clips, date_by_id, keywords_by_id
 
 
 def _get_sorted_clips(folder: Any) -> list:
-    """Return the date-sorted clip list for a folder, using a cache keyed by
-    (folder_name, clip_count). The cache is invalidated whenever the count
-    changes (new clip added/removed) or the folder changes."""
-    global _sorted_clips_cache
-    raw = _as_sequence(folder.GetClipList())
-    cache_key = (folder.GetName(), len(raw))
-    if _sorted_clips_cache is not None and _sorted_clips_cache[0] == cache_key:
-        return _sorted_clips_cache[1]
-    sorted_clips = sorted(raw, key=_clip_date_key)
-    _sorted_clips_cache = (cache_key, sorted_clips)
+    sorted_clips, _, _ = _get_folder_cache(folder)
     return sorted_clips
 
 
@@ -251,31 +268,31 @@ def suggest_keywords(resolve: Any, current_item: Any = None) -> tuple[list[str],
     if folder is None:
         return [], {"reason": "no folder"}
 
-    clips = _get_sorted_clips(folder)
+    clips, date_by_id, keywords_by_id = _get_folder_cache(folder)
     if not clips:
         return [], {"reason": "no clips in folder"}
 
     current_id = current_item.GetMediaId()
-    current_date_key = _clip_date_key(current_item)[0]  # datetime or datetime.max
+    current_date_key = date_by_id.get(current_id, datetime.max)
 
     if current_date_key == datetime.max:
         return [], {"reason": "no parseable date", "clip": current_item.GetName()}
 
     current_date = current_date_key.date()
-    neighbours = []
-    for c in clips:
-        if c.GetMediaId() == current_id:
-            continue
-        d = _clip_date_key(c)[0]
-        if d != datetime.max and d.date() == current_date:
-            neighbours.append(c)
-
-    current_kws = {k.lower() for k in get_keywords(current_item)}
+    current_kws = {k.lower() for k in keywords_by_id.get(current_id, [])}
 
     counts: dict[str, int] = {}
     first_seen: dict[str, str] = {}
-    for clip in neighbours:
-        for kw in get_keywords(clip):
+    neighbour_count = 0
+    for c in clips:
+        cid = c.GetMediaId()
+        if cid == current_id:
+            continue
+        d = date_by_id.get(cid, datetime.max)
+        if d == datetime.max or d.date() != current_date:
+            continue
+        neighbour_count += 1
+        for kw in keywords_by_id.get(cid, []):
             key = kw.lower()
             if key not in current_kws:
                 counts[key] = counts.get(key, 0) + 1
@@ -288,7 +305,7 @@ def suggest_keywords(resolve: Any, current_item: Any = None) -> tuple[list[str],
     debug = {
         "clip": current_item.GetName(),
         "date": str(current_date),
-        "neighbours": len(neighbours),
+        "neighbours": neighbour_count,
         "suggestions": suggestions,
     }
     return suggestions, debug
