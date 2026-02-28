@@ -256,7 +256,7 @@ def suggest_keywords(resolve: Any, n_neighbours: int = 10) -> list[str]:
     return [first_seen[k] for k in ranked[:3]]
 
 
-def ai_suggest_keyword(file_path: str, model: str = "moondream") -> str | None:
+def ai_suggest_keyword(file_path: str, model: str = "llava") -> str | None:
     """Return a single AI-generated keyword for a clip by sending its thumbnail
     to a locally running Ollama VLM. Returns None if Ollama is unreachable."""
     import base64
@@ -269,9 +269,8 @@ def ai_suggest_keyword(file_path: str, model: str = "moondream") -> str | None:
     payload = json.dumps({
         "model": model,
         "prompt": (
-            "Look at the visual scene in this image, ignoring any text, timecode, "
-            "or overlays. Describe what you see in 2-4 words as a media archive "
-            "keyword phrase. Reply with only the keyword phrase, no punctuation."
+            "Describe the main subject of this image in 2-5 words suitable as a "
+            "media archive keyword. Reply with only the keyword phrase, no punctuation."
         ),
         "images": [base64.b64encode(png).decode()],
         "stream": False,
