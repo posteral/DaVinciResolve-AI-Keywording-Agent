@@ -463,39 +463,19 @@ def ai_suggest_keywords(
     if not frames:
         return []
 
-    marker = "ProxyMedia/"
-    idx = file_path.find(marker)
-    display_path = file_path[idx + len(marker):] if idx != -1 else file_path
-    path_context = f"The file path of this clip is: {display_path}. "
-
-    context_parts: list[str] = []
-    if existing_keywords:
-        context_parts.append(f"This clip already has these keywords: {', '.join(existing_keywords)}.")
-    if proximity_suggestions:
-        context_parts.append(f"Nearby clips in the same shoot have these keywords: {', '.join(proximity_suggestions)}.")
-    all_context = " ".join(context_parts)
-
-    if all_context:
+    existing_str = ", ".join(existing_keywords) if existing_keywords else ""
+    if existing_str:
         kw_context = (
-            f"{all_context} "
+            f"This clip already has these keywords: {existing_str}. "
             f"Suggest {n} additional keywords not already in that list. "
         )
     else:
         kw_context = f"Suggest {n} keywords for this clip. "
 
-    catalog_context = ""
-    if catalog:
-        catalog_context = (
-            f"Prefer exact wording from this existing keyword catalog when relevant: "
-            f"{', '.join(catalog)}. "
-        )
-
     payload = json.dumps({
         "model": model,
         "prompt": (
-            f"{path_context}"
             f"{kw_context}"
-            f"{catalog_context}"
             "Rules: each keyword must be 1-4 words only, no sentences or punctuation. "
             "Named places, landmarks, and people use Title Case. "
             "Generic objects, activities, and features use lowercase. "
