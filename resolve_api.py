@@ -233,10 +233,17 @@ def suggest_keywords(resolve: Any) -> list[str]:
     current_id = current_item.GetMediaId()
     current_date_key = _clip_date_key(current_item)[0]  # datetime or datetime.max
 
-    # All clips from the same calendar day, excluding the current clip.
+    # If the current clip has no parseable date, fall back to an empty list
+    # rather than matching all other undated clips via datetime.max.
+    if current_date_key == datetime.max:
+        return []
+
+    # All clips from the same calendar day, excluding the current clip and
+    # any clips whose date could not be parsed.
     neighbours = [
         c for c in clips
         if c.GetMediaId() != current_id
+        and _clip_date_key(c)[0] != datetime.max
         and _clip_date_key(c)[0].date() == current_date_key.date()
     ]
 

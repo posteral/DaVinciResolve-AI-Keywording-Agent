@@ -232,6 +232,17 @@ class TestSuggestKeywords(unittest.TestCase):
         self.assertIn("alpha", suggestions)
         self.assertIn("beta", suggestions)
 
+    def test_excludes_undated_clips(self):
+        # Clips with no parseable date get datetime.max — they must not be
+        # treated as same-day neighbours of each other.
+        clips = [
+            self._make_clip("undated1", ["wrong"],    ""),
+            self._make_clip("cur",      [],            ""),
+            self._make_clip("undated2", ["also_wrong"], ""),
+        ]
+        resolve = self._make_resolve(clips, "cur")
+        self.assertEqual(resolve_api.suggest_keywords(resolve), [])
+
     def test_excludes_clips_from_different_days(self):
         clips = [
             self._make_clip("yesterday", ["other_day"], "01/01/2024 23:00:00"),
