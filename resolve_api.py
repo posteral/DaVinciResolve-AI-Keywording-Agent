@@ -269,8 +269,9 @@ def ai_suggest_keyword(file_path: str, model: str = "moondream") -> str | None:
     payload = json.dumps({
         "model": model,
         "prompt": (
-            "Describe the main subject of this image in 2-5 words suitable as a "
-            "media archive keyword. Reply with only the keyword phrase, no punctuation."
+            "Look at the visual scene in this image, ignoring any text, timecode, "
+            "or overlays. Describe what you see in 2-4 words as a media archive "
+            "keyword phrase. Reply with only the keyword phrase, no punctuation."
         ),
         "images": [base64.b64encode(png).decode()],
         "stream": False,
@@ -283,7 +284,7 @@ def ai_suggest_keyword(file_path: str, model: str = "moondream") -> str | None:
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=60) as resp:
             result = json.loads(resp.read())
         text = result.get("response", "").strip()
         return text if text else None
