@@ -4,6 +4,21 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.18.1] - 2026-02-28
+
+### Fixed
+
+- Proximity suggestions now score each keyword by its **nearest** carrying
+  clip (max 1/d) instead of the cumulative sum across all clips. Previously,
+  a keyword like "Ohio" appearing on 30+ clips in the window could accumulate
+  a total score exceeding 1.0 and beat a unique keyword on the immediately-
+  adjacent clip (score 1.0). With max scoring, adjacent-clip keywords always
+  rank first.
+- AI suggestion catalog polling: `loadAiSuggestion` now retries `_loadCatalog`
+  up to 5 times (1 s apart) when the server returns an empty catalog, so
+  `catalog_size=0` no longer occurs while the background catalog build is
+  still running on first page load.
+
 ## [0.18.0] - 2026-02-28
 
 ### Fixed
