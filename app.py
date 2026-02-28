@@ -99,6 +99,7 @@ def clip_ai_suggestion():
         return jsonify({"suggestion": None})
 
     suggestion = resolve_api.ai_suggest_keyword(file_path)
+    print(f"[ai-suggestion] file={file_path!r} suggestion={suggestion!r}")
     return jsonify({"suggestion": suggestion})
 
 
