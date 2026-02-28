@@ -1050,7 +1050,7 @@
       if (panel)   panel.style.display = 'none';
       if (cards)   cards.innerHTML = '';
       if (none)    none.style.display = 'none';
-      if (apply)   apply.style.display = 'none';
+      if (apply) { apply.style.display = 'none'; apply.disabled = false; apply.textContent = 'Apply identities to keywords'; }
       if (spinner) spinner.style.display = 'none';
     }
 
