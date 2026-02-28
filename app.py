@@ -39,10 +39,12 @@ def clip():
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 
+    unsorted = keywords_stored != keywords
+    print(f"[clip] stored={keywords_stored!r} sorted={keywords!r} unsorted={unsorted}")
     return jsonify({
         "clip": name,
         "keywords": keywords,
-        "unsorted": keywords_stored != keywords,
+        "unsorted": unsorted,
     })
 
 
