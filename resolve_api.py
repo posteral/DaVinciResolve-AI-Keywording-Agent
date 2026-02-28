@@ -440,7 +440,10 @@ def ai_suggest_keywords(
     if not frames:
         return []
 
-    path_context = f"The file path of this clip is: {file_path}. "
+    marker = "ProxyMedia/"
+    idx = file_path.find(marker)
+    display_path = file_path[idx + len(marker):] if idx != -1 else file_path
+    path_context = f"The file path of this clip is: {display_path}. "
 
     if existing_keywords:
         kw_context = (
