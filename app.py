@@ -255,6 +255,9 @@ def set_keywords():
     if not ok:
         return jsonify({"error": "Resolve rejected the write. Check External Scripting is enabled."}), 500
 
+    # Invalidate folder cache so next navigate/suggest reflects the new keywords.
+    resolve_api.invalidate_folder_cache()
+
     # Refresh catalog in background — does not block the Save response.
     with _catalog_lock:
         already = _catalog_refresh_pending

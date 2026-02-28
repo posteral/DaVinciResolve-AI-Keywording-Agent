@@ -174,6 +174,13 @@ def _clip_date_key(clip: Any) -> tuple:
 _folder_cache: tuple | None = None
 
 
+def invalidate_folder_cache() -> None:
+    """Force the next suggest_keywords/navigate call to rebuild the cache.
+    Call this after writing keywords to any clip."""
+    global _folder_cache
+    _folder_cache = None
+
+
 def _get_folder_cache(folder: Any) -> tuple[list, dict, dict]:
     """Return (sorted_clips, date_by_id, keywords_by_id) for the folder,
     building and caching all per-clip data in a single pass."""
