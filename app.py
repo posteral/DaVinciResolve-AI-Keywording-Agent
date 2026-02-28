@@ -1,5 +1,6 @@
 from flask import Flask, render_template, jsonify, request, send_file
 from io import BytesIO
+import time
 import threading
 import resolve_api
 
@@ -13,20 +14,41 @@ _resolve_obj = None
 _keyword_catalog: list[str] = []
 _catalog_loaded = False
 _catalog_lock = threading.Lock()  # guards _keyword_catalog / _catalog_loaded
+_catalog_refresh_pending = False   # prevents stacking multiple refresh threads
 
 
 def _refresh_catalog_bg() -> None:
-    """Rebuild the keyword catalog in a background thread (non-blocking)."""
-    global _keyword_catalog, _catalog_loaded
+    """Rebuild the keyword catalog in a background thread.
+
+    Repeatedly tries to acquire _resolve_lock with a short timeout so that
+    interactive requests (navigate, clip, save) are never blocked waiting
+    behind this walk. Gives up after 30 attempts (~60 s total) to avoid
+    spinning forever if Resolve is unresponsive.
+    """
+    global _keyword_catalog, _catalog_loaded, _catalog_refresh_pending
     try:
-        with _resolve_lock:
-            resolve = _get_resolve()
-            catalog = resolve_api.get_all_project_keywords(resolve)
-        with _catalog_lock:
-            _keyword_catalog = catalog
-            _catalog_loaded = True
+        catalog = None
+        for _ in range(30):
+            acquired = _resolve_lock.acquire(timeout=0.1)
+            if acquired:
+                try:
+                    resolve = _get_resolve()
+                    catalog = resolve_api.get_all_project_keywords(resolve)
+                finally:
+                    _resolve_lock.release()
+                break
+            # Lock is busy (interactive request in flight) — wait and retry.
+            time.sleep(2)
+
+        if catalog is not None:
+            with _catalog_lock:
+                _keyword_catalog = catalog
+                _catalog_loaded = True
     except Exception:
         pass  # stale catalog is fine
+    finally:
+        with _catalog_lock:
+            _catalog_refresh_pending = False
 
 
 def _get_resolve():
@@ -135,10 +157,14 @@ def clip_ai_suggestion():
 
 @app.route("/api/keywords/catalog")
 def keywords_catalog():
+    global _catalog_refresh_pending
     with _catalog_lock:
         loaded = _catalog_loaded
+        pending = _catalog_refresh_pending
         catalog = list(_keyword_catalog)
-    if not loaded:
+    if not loaded and not pending:
+        with _catalog_lock:
+            _catalog_refresh_pending = True
         threading.Thread(target=_refresh_catalog_bg, daemon=True).start()
     return jsonify({"keywords": catalog})
 
@@ -197,7 +223,12 @@ def set_keywords():
         return jsonify({"error": "Resolve rejected the write. Check External Scripting is enabled."}), 500
 
     # Refresh catalog in background — does not block the Save response.
-    threading.Thread(target=_refresh_catalog_bg, daemon=True).start()
+    with _catalog_lock:
+        already = _catalog_refresh_pending
+        if not already:
+            _catalog_refresh_pending = True
+    if not already:
+        threading.Thread(target=_refresh_catalog_bg, daemon=True).start()
 
     return jsonify({"clip": name, "keywords": keywords})
 
