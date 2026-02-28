@@ -388,7 +388,8 @@ def confirm_identities():
                 )
 
         if add_as_keyword and keyword_string:
-            keywords_added.append(keyword_string)
+            if keyword_string.lower() not in {k.lower() for k in keywords_added}:
+                keywords_added.append(keyword_string)
 
     try:
         identity_registry.save_registry(registry)
