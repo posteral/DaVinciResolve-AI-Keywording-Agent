@@ -4,6 +4,26 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-02-28
+
+### Changed
+
+- AI keyword suggestions now sample 5 frames at 10/30/50/70/90% of the clip
+  duration instead of a single midpoint frame, giving the VLM a broader view
+  of the clip's content. All frames are extracted in parallel via
+  `ThreadPoolExecutor` so latency is unchanged relative to the single-frame
+  approach.
+
+### Added
+
+- `frames_from_file_path(file_path, percentages)` in `resolve_api.py`: extracts
+  multiple frames at specified positions using parallel ffmpeg calls.
+- `_probe_duration()` and `_extract_frame()` extracted as shared helpers used by
+  both `thumbnail_from_file_path` and `frames_from_file_path`.
+- 6 unit tests in `TestFramesFromFilePath`: returns 5 frames, seeks at correct
+  percentages, fallback to single frame when duration unknown, skips failed
+  frames, empty when ffmpeg not found.
+
 ## [0.9.0] - 2026-02-28
 
 ### Added
