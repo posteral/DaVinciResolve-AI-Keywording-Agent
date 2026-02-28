@@ -301,6 +301,56 @@ class TestNormaliseAiKeyword(unittest.TestCase):
         self.assertEqual(resolve_api._normalise_ai_keyword(""), "")
 
 
+class TestFramesFromFilePath(unittest.TestCase):
+    def _run(self, duration_stdout=b"10.0", ffprobe_rc=0, frame_rc=0, frame_stdout=b"PNG"):
+        with patch("resolve_api._ffmpeg_path", return_value="/usr/bin/ffmpeg"), \
+             patch("resolve_api._ffprobe_path", return_value="/usr/bin/ffprobe"), \
+             patch("resolve_api.subprocess") as mock_sub:
+            mock_sub.run.side_effect = [
+                MagicMock(returncode=ffprobe_rc, stdout=duration_stdout),
+            ] + [MagicMock(returncode=frame_rc, stdout=frame_stdout)] * 10
+            result = resolve_api.frames_from_file_path("/fake/clip.mov")
+        return result, mock_sub
+
+    def test_returns_five_frames_for_known_duration(self):
+        frames, _ = self._run()
+        self.assertEqual(len(frames), 5)
+
+    def test_all_frames_are_png_bytes(self):
+        frames, _ = self._run()
+        self.assertTrue(all(f == b"PNG" for f in frames))
+
+    def test_seeks_at_correct_percentages(self):
+        _, mock_sub = self._run(duration_stdout=b"100.0")
+        seek_args = {call[0][0][2] for call in mock_sub.run.call_args_list[1:]}
+        self.assertEqual(seek_args, {"10.0", "30.0", "50.0", "70.0", "90.0"})
+
+    def test_falls_back_to_single_frame_when_duration_unknown(self):
+        frames, mock_sub = self._run(ffprobe_rc=1, duration_stdout=b"")
+        self.assertEqual(len(frames), 1)
+        seek_arg = mock_sub.run.call_args_list[1][0][0][2]
+        self.assertEqual(seek_arg, "0.0")
+
+    def test_skips_failed_frames(self):
+        with patch("resolve_api._ffmpeg_path", return_value="/usr/bin/ffmpeg"), \
+             patch("resolve_api._ffprobe_path", return_value="/usr/bin/ffprobe"), \
+             patch("resolve_api.subprocess") as mock_sub:
+            mock_sub.run.side_effect = [
+                MagicMock(returncode=0, stdout=b"10.0"),
+                MagicMock(returncode=0, stdout=b"F1"),
+                MagicMock(returncode=1, stdout=b""),   # fail
+                MagicMock(returncode=0, stdout=b"F3"),
+                MagicMock(returncode=0, stdout=b"F4"),
+                MagicMock(returncode=0, stdout=b"F5"),
+            ]
+            frames = resolve_api.frames_from_file_path("/fake/clip.mov")
+        self.assertEqual(len(frames), 4)
+
+    def test_returns_empty_when_ffmpeg_not_found(self):
+        with patch("resolve_api._ffmpeg_path", side_effect=FileNotFoundError):
+            self.assertEqual(resolve_api.frames_from_file_path("/fake/clip.mov"), [])
+
+
 class TestAiSuggestKeywords(unittest.TestCase):
     def _make_urlopen(self, response_text):
         body = json.dumps({"response": response_text}).encode()
@@ -310,13 +360,21 @@ class TestAiSuggestKeywords(unittest.TestCase):
         return cm
 
     def test_returns_three_keywords(self):
-        with patch("resolve_api.thumbnail_from_file_path", return_value=b"PNG"), \
+        with patch("resolve_api.frames_from_file_path", return_value=[b"F1", b"F2", b"F3"]), \
              patch("resolve_api.urllib.request.urlopen", return_value=self._make_urlopen("mountain landscape, sunset, rolling hills")):
             result = resolve_api.ai_suggest_keywords("/fake/clip.mov")
         self.assertEqual(result, ["mountain landscape", "sunset", "rolling hills"])
 
+    def test_all_frames_sent_in_images_array(self):
+        frames = [b"F1", b"F2", b"F3", b"F4", b"F5"]
+        with patch("resolve_api.frames_from_file_path", return_value=frames), \
+             patch("resolve_api.urllib.request.urlopen", return_value=self._make_urlopen("a, b, c")) as mock_open:
+            resolve_api.ai_suggest_keywords("/fake/clip.mov")
+        payload = json.loads(mock_open.call_args[0][0].data)
+        self.assertEqual(len(payload["images"]), 5)
+
     def test_existing_keywords_included_in_prompt(self):
-        with patch("resolve_api.thumbnail_from_file_path", return_value=b"PNG"), \
+        with patch("resolve_api.frames_from_file_path", return_value=[b"F1"]), \
              patch("resolve_api.urllib.request.urlopen", return_value=self._make_urlopen("waterfall, mist, rocks")) as mock_open:
             resolve_api.ai_suggest_keywords("/fake/clip.mov", existing_keywords=["sunset", "beach"])
         called_payload = json.loads(mock_open.call_args[0][0].data)
@@ -324,7 +382,7 @@ class TestAiSuggestKeywords(unittest.TestCase):
         self.assertIn("beach", called_payload["prompt"])
 
     def test_deduplicates_against_existing_keywords(self):
-        with patch("resolve_api.thumbnail_from_file_path", return_value=b"PNG"), \
+        with patch("resolve_api.frames_from_file_path", return_value=[b"F1"]), \
              patch("resolve_api.urllib.request.urlopen", return_value=self._make_urlopen("Imagination Station, Toledo, waterfall")):
             result = resolve_api.ai_suggest_keywords(
                 "/fake/clip.mov",
@@ -335,24 +393,24 @@ class TestAiSuggestKeywords(unittest.TestCase):
         self.assertIn("waterfall", result)
 
     def test_deduplicates_within_suggestions(self):
-        with patch("resolve_api.thumbnail_from_file_path", return_value=b"PNG"), \
+        with patch("resolve_api.frames_from_file_path", return_value=[b"F1"]), \
              patch("resolve_api.urllib.request.urlopen", return_value=self._make_urlopen("sunset, sunset, rolling hills")):
             result = resolve_api.ai_suggest_keywords("/fake/clip.mov")
         self.assertEqual(result.count("sunset"), 1)
 
     def test_returns_empty_when_ollama_unreachable(self):
-        with patch("resolve_api.thumbnail_from_file_path", return_value=b"PNG"), \
+        with patch("resolve_api.frames_from_file_path", return_value=[b"F1"]), \
              patch("resolve_api.urllib.request.urlopen", side_effect=OSError("connection refused")):
             result = resolve_api.ai_suggest_keywords("/fake/clip.mov")
         self.assertEqual(result, [])
 
-    def test_returns_empty_when_thumbnail_unavailable(self):
-        with patch("resolve_api.thumbnail_from_file_path", return_value=None):
+    def test_returns_empty_when_no_frames(self):
+        with patch("resolve_api.frames_from_file_path", return_value=[]):
             result = resolve_api.ai_suggest_keywords("/fake/clip.mov")
         self.assertEqual(result, [])
 
     def test_returns_empty_when_response_is_empty(self):
-        with patch("resolve_api.thumbnail_from_file_path", return_value=b"PNG"), \
+        with patch("resolve_api.frames_from_file_path", return_value=[b"F1"]), \
              patch("resolve_api.urllib.request.urlopen", return_value=self._make_urlopen("")):
             result = resolve_api.ai_suggest_keywords("/fake/clip.mov")
         self.assertEqual(result, [])

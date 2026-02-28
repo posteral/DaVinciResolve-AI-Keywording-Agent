@@ -420,13 +420,13 @@ def ai_suggest_keywords(
     n: int = 3,
 ) -> list[str]:
     """Return up to n AI-generated keyword suggestions for a clip by sending
-    its thumbnail to a locally running Ollama VLM. Returns [] if Ollama is
-    unreachable or no thumbnail is available."""
+    multiple sampled frames to a locally running Ollama VLM. Returns [] if
+    Ollama is unreachable or no frames are available."""
     import base64
     import json
 
-    png = thumbnail_from_file_path(file_path)
-    if not png:
+    frames = frames_from_file_path(file_path)
+    if not frames:
         return []
 
     if existing_keywords:
@@ -435,19 +435,19 @@ def ai_suggest_keywords(
             f"Suggest {n} additional keywords not already in that list. "
         )
     else:
-        kw_context = f"Suggest {n} keywords for this image. "
+        kw_context = f"Suggest {n} keywords for this clip. "
 
     payload = json.dumps({
         "model": model,
         "prompt": (
             f"{kw_context}"
-            "Each keyword is a phrase of 1-4 words describing a distinct aspect of the image. "
+            "Each keyword is a phrase of 1-4 words describing a distinct aspect of the clip. "
             "If a subject is a specific named place, landmark, or person use Title Case. "
             "If a subject is a generic object, animal, activity, or natural feature use lowercase. "
             "Examples: 'sunset', 'rolling hills', 'prayer flags', 'Eiffel Tower', 'Trevi Fountain'. "
             f"Reply with exactly {n} keyword phrases separated by commas, nothing else."
         ),
-        "images": [base64.b64encode(png).decode()],
+        "images": [base64.b64encode(f).decode() for f in frames],
         "stream": False,
     }).encode()
 
@@ -507,14 +507,8 @@ def _ffprobe_path() -> str:
     raise FileNotFoundError("ffprobe not found; install it with: brew install ffmpeg")
 
 
-def thumbnail_from_file_path(file_path: str) -> bytes | None:
-    """Extract a mid-point frame from a media file via ffmpeg. No Resolve IPC."""
-    try:
-        ffmpeg = _ffmpeg_path()
-        ffprobe = _ffprobe_path()
-    except FileNotFoundError:
-        return None
-
+def _probe_duration(file_path: str, ffprobe: str) -> float:
+    """Return the duration of a media file in seconds, or 0.0 on failure."""
     try:
         probe = subprocess.run(
             [
@@ -526,12 +520,13 @@ def thumbnail_from_file_path(file_path: str) -> bytes | None:
             capture_output=True,
             timeout=10,
         )
-        duration = float(probe.stdout.strip()) if probe.returncode == 0 else 0.0
+        return float(probe.stdout.strip()) if probe.returncode == 0 else 0.0
     except Exception:
-        duration = 0.0
+        return 0.0
 
-    seek = duration / 2 if duration > 0 else 0.0
 
+def _extract_frame(file_path: str, ffmpeg: str, seek: float) -> bytes | None:
+    """Extract a single PNG frame at the given seek position."""
     try:
         result = subprocess.run(
             [
@@ -547,10 +542,47 @@ def thumbnail_from_file_path(file_path: str) -> bytes | None:
         )
     except Exception:
         return None
-
     if result.returncode != 0 or not result.stdout:
         return None
-
     return result.stdout
+
+
+def thumbnail_from_file_path(file_path: str) -> bytes | None:
+    """Extract a mid-point frame from a media file via ffmpeg. No Resolve IPC."""
+    try:
+        ffmpeg = _ffmpeg_path()
+        ffprobe = _ffprobe_path()
+    except FileNotFoundError:
+        return None
+
+    duration = _probe_duration(file_path, ffprobe)
+    seek = duration / 2 if duration > 0 else 0.0
+    return _extract_frame(file_path, ffmpeg, seek)
+
+
+def frames_from_file_path(
+    file_path: str,
+    percentages: tuple[float, ...] = (0.1, 0.3, 0.5, 0.7, 0.9),
+) -> list[bytes]:
+    """Extract one PNG frame per percentage position of the clip duration.
+    Returns a list of raw PNG bytes (may be shorter than percentages if some
+    frames fail). Falls back to a single mid-point frame if duration is unknown.
+    No Resolve IPC."""
+    try:
+        ffmpeg = _ffmpeg_path()
+        ffprobe = _ffprobe_path()
+    except FileNotFoundError:
+        return []
+
+    duration = _probe_duration(file_path, ffprobe)
+    if duration > 0:
+        seeks = [duration * p for p in percentages]
+    else:
+        seeks = [0.0]  # unknown duration — fall back to start
+
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=len(seeks)) as pool:
+        results = list(pool.map(lambda s: _extract_frame(file_path, ffmpeg, s), seeks))
+    return [f for f in results if f]
 
 
