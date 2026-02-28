@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.17.1] - 2026-02-28
+
+### Changed
+
+- Identity assign inputs now use a custom autocomplete dropdown instead of the
+  native `<datalist>`. Filters known identities as you type, first match
+  pre-selected, arrow keys to navigate, Enter or click to commit. Focusing an
+  empty field shows all known identities.
+
 ## [0.17.0] - 2026-02-28
 
 ### Changed
