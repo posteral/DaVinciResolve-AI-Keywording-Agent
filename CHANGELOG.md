@@ -4,6 +4,24 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-02-28
+
+### Added
+
+- Loading spinner next to the **AI Suggested** label while suggestions are
+  being fetched from Ollama. Disappears when results arrive or the section
+  collapses.
+- `no_proxy` flag in `/api/clip` and `/api/clip/navigate` responses.
+
+### Changed
+
+- All ffmpeg calls (thumbnail extraction and AI suggestion frames) now use
+  the proxy file (`Proxy Media Path`) only. The original media file
+  (`File Path`) is never read, preventing accidental access to slow original
+  media drives.
+- When no proxy exists the thumbnail area shows **"No proxy available"** and
+  the AI suggestion section is skipped entirely.
+
 ## [0.10.0] - 2026-02-28
 
 ### Changed
