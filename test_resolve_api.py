@@ -184,5 +184,94 @@ class TestThumbnailFromFilePath(unittest.TestCase):
         self.assertIsNone(result)
 
 
+class TestSuggestKeywords(unittest.TestCase):
+    def _make_clip(self, media_id, keywords, date="01/01/2024 12:00:00"):
+        clip = MagicMock()
+        clip.GetMediaId.return_value = media_id
+        clip.GetName.return_value = media_id
+        clip.GetClipProperty.side_effect = lambda k: date if k == "Date Created" else (", ".join(keywords) if k == "Keywords" else "")
+        clip.GetMetadata.side_effect = lambda k=None: {"Keywords": ", ".join(keywords)} if k is None else (", ".join(keywords) if k == "Keywords" else None)
+        return clip
+
+    def _make_resolve(self, clips, current_id):
+        resolve = MagicMock()
+        folder = MagicMock()
+        folder.GetClipList.return_value = {str(i): c for i, c in enumerate(clips)}
+        media_pool = MagicMock()
+        media_pool.GetCurrentFolder.return_value = folder
+        media_pool.GetSelectedClips.return_value = {
+            "1": next(c for c in clips if c.GetMediaId() == current_id)
+        }
+        project = MagicMock()
+        project.GetMediaPool.return_value = media_pool
+        project.GetCurrentTimeline.return_value = None
+        project_manager = MagicMock()
+        project_manager.GetCurrentProject.return_value = project
+        resolve.GetProjectManager.return_value = project_manager
+        return resolve
+
+    def test_returns_top_3_by_frequency(self):
+        # 5 neighbours each with "alpha", 3 with "beta", 1 with "gamma" and "delta"
+        clips = [
+            self._make_clip("n1", ["alpha", "beta"], "01/01/2024 10:00:00"),
+            self._make_clip("n2", ["alpha", "beta"], "01/01/2024 11:00:00"),
+            self._make_clip("cur", [], "01/01/2024 12:00:00"),
+            self._make_clip("n3", ["alpha", "beta", "gamma"], "01/01/2024 13:00:00"),
+            self._make_clip("n4", ["alpha", "delta"], "01/01/2024 14:00:00"),
+            self._make_clip("n5", ["alpha"], "01/01/2024 15:00:00"),
+        ]
+        resolve = self._make_resolve(clips, "cur")
+        suggestions = resolve_api.suggest_keywords(resolve)
+        self.assertEqual(suggestions[0], "alpha")  # freq=5
+        self.assertEqual(suggestions[1], "beta")   # freq=3
+        self.assertIn(suggestions[2], ["gamma", "delta"])  # freq=1 tie
+        self.assertEqual(len(suggestions), 3)
+
+    def test_excludes_current_clip_keywords(self):
+        clips = [
+            self._make_clip("n1", ["alpha", "existing"], "01/01/2024 10:00:00"),
+            self._make_clip("n2", ["alpha", "existing"], "01/01/2024 11:00:00"),
+            self._make_clip("cur", ["existing"], "01/01/2024 12:00:00"),
+            self._make_clip("n3", ["alpha", "existing"], "01/01/2024 13:00:00"),
+        ]
+        resolve = self._make_resolve(clips, "cur")
+        suggestions = resolve_api.suggest_keywords(resolve)
+        self.assertNotIn("existing", [s.lower() for s in suggestions])
+        self.assertIn("alpha", suggestions)
+
+    def test_returns_empty_when_no_neighbours_have_keywords(self):
+        clips = [
+            self._make_clip("n1", [], "01/01/2024 10:00:00"),
+            self._make_clip("cur", [], "01/01/2024 12:00:00"),
+            self._make_clip("n2", [], "01/01/2024 13:00:00"),
+        ]
+        resolve = self._make_resolve(clips, "cur")
+        self.assertEqual(resolve_api.suggest_keywords(resolve), [])
+
+    def test_returns_empty_when_no_current_item(self):
+        resolve = MagicMock()
+        project_manager = MagicMock()
+        project = MagicMock()
+        media_pool = MagicMock()
+        media_pool.GetSelectedClips.return_value = {}
+        project.GetMediaPool.return_value = media_pool
+        project.GetCurrentTimeline.return_value = None
+        project_manager.GetCurrentProject.return_value = project
+        resolve.GetProjectManager.return_value = project_manager
+        self.assertEqual(resolve_api.suggest_keywords(resolve), [])
+
+    def test_fewer_than_3_candidates_returns_what_exists(self):
+        clips = [
+            self._make_clip("n1", ["alpha"], "01/01/2024 10:00:00"),
+            self._make_clip("cur", [], "01/01/2024 12:00:00"),
+            self._make_clip("n2", ["beta"], "01/01/2024 13:00:00"),
+        ]
+        resolve = self._make_resolve(clips, "cur")
+        suggestions = resolve_api.suggest_keywords(resolve)
+        self.assertEqual(len(suggestions), 2)
+        self.assertIn("alpha", suggestions)
+        self.assertIn("beta", suggestions)
+
+
 if __name__ == "__main__":
     unittest.main()
