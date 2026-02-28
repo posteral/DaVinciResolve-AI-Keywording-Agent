@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-02-28
+
+### Changed
+
+- Test files moved into `tests/` directory. CI and README updated accordingly.
+
 ## [0.12.0] - 2026-02-28
 
 ### Added
