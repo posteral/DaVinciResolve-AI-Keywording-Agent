@@ -116,7 +116,7 @@ All ffmpeg operations (thumbnail, AI suggestion frames, identity detection frame
 ## Tests
 
 ```bash
-python3 -m unittest test_resolve_api test_identity_registry test_identity_recognition test_identity_routes -v
+python3 -m unittest tests.test_resolve_api tests.test_identity_registry tests.test_identity_recognition tests.test_identity_routes -v
 ```
 
 ## Changelog

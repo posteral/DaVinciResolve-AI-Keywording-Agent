@@ -12,4 +12,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: python -m unittest test_resolve_api -v
+      - run: pip install flask numpy Pillow
+      - run: python -m unittest tests.test_resolve_api tests.test_identity_registry tests.test_identity_recognition tests.test_identity_routes -v
