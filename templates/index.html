@@ -436,7 +436,7 @@
           <div id="suggestions-container"></div>
         </div>
         <div id="ai-suggestion-section" style="display:none;margin-top:16px">
-          <div class="label">AI Suggested <span class="spinner" id="ai-spinner"></span></div>
+          <div class="label">AI Suggested</div>
           <div id="ai-suggestion-container"></div>
         </div>
         <div style="margin-top:16px">
@@ -726,10 +726,6 @@
     }
 
     async function loadAiSuggestion(filePath) {
-      const aiSpinner = document.getElementById('ai-spinner');
-      const aiSection = document.getElementById('ai-suggestion-section');
-      if (aiSection) aiSection.style.display = 'block';
-      if (aiSpinner) aiSpinner.style.display = 'inline-block';
       try {
         let url = '/api/clip/ai-suggestion';
         if (filePath) {
@@ -743,13 +739,6 @@
         renderAiSuggestions(data.suggestions);
       } catch (_) {
         // best-effort — fail silently
-      } finally {
-        if (aiSpinner) aiSpinner.style.display = 'none';
-        const section = document.getElementById('ai-suggestion-section');
-        const container = document.getElementById('ai-suggestion-container');
-        if (section && container && container.children.length === 0) {
-          section.style.display = 'none';
-        }
       }
     }
 
