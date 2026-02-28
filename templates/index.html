@@ -551,7 +551,7 @@
     <h2>Detected Identities <span class="spinner" id="identity-spinner"></span></h2>
     <div id="identity-cards"></div>
     <p id="identity-none" style="display:none">No faces detected in this clip.</p>
-    <button id="identity-apply-btn" onclick="applyIdentities()">Apply identities to keywords</button>
+    <button id="identity-apply-btn">Apply identities to keywords</button>
   </div>
 
   </div><!-- /.layout-row -->
@@ -1190,10 +1190,12 @@
       });
 
       apply.style.display = 'block';
+      apply.onclick = applyIdentities;
     }
 
     async function applyIdentities() {
       const applyBtn = document.getElementById('identity-apply-btn');
+      if (!applyBtn || applyBtn.disabled) return;
       const cards = document.querySelectorAll('.identity-card');
       if (!cards.length) return;
 
