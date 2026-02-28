@@ -611,6 +611,8 @@
         hideSave();
         savedMsg.style.display = 'inline';
         setTimeout(() => { savedMsg.style.display = 'none'; }, 2000);
+        // Invalidate catalog so it's re-fetched fresh after the background rebuild.
+        _catalog = null;
       } catch (err) {
         const errEl = document.createElement('div');
         errEl.className = 'error-box save-error';
