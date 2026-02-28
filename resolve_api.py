@@ -269,8 +269,12 @@ def ai_suggest_keyword(file_path: str, model: str = "llava") -> str | None:
     payload = json.dumps({
         "model": model,
         "prompt": (
-            "Describe the main subject of this image in 2-5 words suitable as a "
-            "media archive keyword. Reply with only the keyword phrase, no punctuation."
+            "Describe the main subject of this image as a media archive keyword phrase. "
+            "Use 1-4 words. "
+            "If the subject is a specific named place, landmark, or person use Title Case. "
+            "If the subject is a generic object, animal, activity, or natural feature use lowercase. "
+            "Examples: 'sunset', 'rolling hills', 'prayer flags', 'Eiffel Tower', 'Trevi Fountain'. "
+            "Reply with only the keyword phrase, no punctuation, no explanation."
         ),
         "images": [base64.b64encode(png).decode()],
         "stream": False,
