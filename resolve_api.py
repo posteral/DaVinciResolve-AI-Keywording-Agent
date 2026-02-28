@@ -256,45 +256,64 @@ def suggest_keywords(resolve: Any, n_neighbours: int = 10) -> list[str]:
     return [first_seen[k] for k in ranked[:3]]
 
 
-def _normalise_ai_keyword(text: str) -> str:
+def _normalise_ai_keyword(
+    text: str, existing_keywords: list[str] | None = None
+) -> str:
     """Apply keyword casing conventions to a VLM response.
 
-    llava always capitalises the first word (sentence-start) and may or may
-    not capitalise subsequent words. Strategy:
-
-    - Identify proper-noun words as those capitalised at position > 0.
-    - Lowercase everything, then restore capitals only for those words.
-    - The first word gets its capital restored only if it is also a
-      proper noun (i.e. it appears capitalised at position > 0 somewhere,
-      or it is the only word and was capitalised — single-word proper nouns
-      are kept as-is because we cannot distinguish them from sentence-start).
+    Strategy:
+    1. Build a lookup of known proper-noun words from existing_keywords
+       (e.g. 'New York City' → {'new': 'New', 'york': 'York', 'city': 'City'}).
+    2. Lowercase the entire suggestion.
+    3. Restore capitalisation word-by-word from the lookup.
+    4. For any word not in the lookup, keep lowercase — we default to
+       generic unless we have evidence of proper-noun status.
     """
-    words = text.strip().split()
-    if not words:
+    # Words that are too generic to restore even when they appear capitalised
+    # inside a proper noun (e.g. "City" in "New York City", "Street" in
+    # "Wall Street").
+    _GENERIC = {
+        "a", "an", "the", "and", "or", "of", "in", "on", "at", "to",
+        "with", "by", "for", "from",
+        "city", "town", "state", "county", "district", "region",
+        "street", "road", "avenue", "boulevard", "lane", "way",
+        "park", "garden", "square", "place",
+        "lake", "river", "bay", "sea", "ocean", "island", "mountain",
+        "north", "south", "east", "west", "central",
+        "upper", "lower", "old", "new", "great", "little", "big",
+        "national", "international", "royal",
+    }
+
+    # Build lookup: lowercase word → canonical capitalised form.
+    # Single-word keywords (e.g. "Maria", "Portugal") contribute directly.
+    # Multi-word keywords (e.g. "New York City") contribute only as a full
+    # phrase, not word-by-word — this prevents "York" from matching "york"
+    # in an unrelated context.
+    known_words: dict[str, str] = {}   # from single-word keywords only
+    known_phrases: dict[str, str] = {} # from multi-word keywords
+
+    for kw in (existing_keywords or []):
+        if not kw or not kw[0].isupper():
+            continue
+        words_in_kw = kw.split()
+        if len(words_in_kw) == 1:
+            w = words_in_kw[0]
+            if w.lower() not in _GENERIC:
+                known_words[w.lower()] = w
+        else:
+            known_phrases[kw.lower()] = kw
+
+    lower_text = text.strip().lower()
+    if not lower_text:
         return text
 
-    if len(words) == 1:
-        # Single word: keep as-is (can't distinguish proper noun from sentence-start).
-        return words[0]
+    # Apply multi-word phrase substitutions first (longest first).
+    result = lower_text
+    for phrase_lower, phrase_orig in sorted(known_phrases.items(), key=lambda x: -len(x[0])):
+        result = result.replace(phrase_lower, phrase_orig)
 
-    first_is_cap = words[0][0].isupper()
-    rest_caps = [w for w in words[1:] if w and w[0].isupper()]
-
-    if first_is_cap and not rest_caps:
-        # Only the first word is capitalised → pure sentence-start, all generic.
-        return text.lower()
-
-    if first_is_cap and len(rest_caps) == len(words) - 1:
-        # Every word is capitalised → Title Case applied uniformly, all generic.
-        return text.lower()
-
-    # Some words after position 0 are capitalised while others aren't →
-    # those are genuine proper nouns; lowercase everything else.
-    proper = {w.lower() for w in rest_caps}
-    return " ".join(
-        (w[0].upper() + w[1:].lower()) if w.lower() in proper else w.lower()
-        for w in words
-    )
+    # Apply single-word substitutions on remaining lowercase tokens.
+    return " ".join(known_words.get(w, w) for w in result.split())
 
 
 def ai_suggest_keyword(
@@ -346,7 +365,7 @@ def ai_suggest_keyword(
         text = result.get("response", "").strip()
         if not text:
             return None
-        return _normalise_ai_keyword(text)
+        return _normalise_ai_keyword(text, existing_keywords)
     except Exception:
         return None
 

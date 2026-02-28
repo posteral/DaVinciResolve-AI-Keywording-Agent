@@ -234,29 +234,36 @@ class TestSuggestKeywords(unittest.TestCase):
 
 
 class TestNormaliseAiKeyword(unittest.TestCase):
-    def test_sentence_start_capital_lowercased(self):
-        # First word capital is sentence-start, not a proper noun → lowercase
+    def test_generic_phrase_lowercased(self):
         self.assertEqual(resolve_api._normalise_ai_keyword("Street scene"), "street scene")
         self.assertEqual(resolve_api._normalise_ai_keyword("Narrow alleyway"), "narrow alleyway")
         self.assertEqual(resolve_api._normalise_ai_keyword("Outdoor seating"), "outdoor seating")
         self.assertEqual(resolve_api._normalise_ai_keyword("Wedding photographer"), "wedding photographer")
-
-    def test_all_title_case_generic_lowercased(self):
         self.assertEqual(resolve_api._normalise_ai_keyword("Model Train Set"), "model train set")
-        self.assertEqual(resolve_api._normalise_ai_keyword("Ski Lift"), "ski lift")
+        self.assertEqual(resolve_api._normalise_ai_keyword("Cemetery"), "cemetery")
+        self.assertEqual(resolve_api._normalise_ai_keyword("Boat"), "boat")
 
-    def test_mid_phrase_proper_noun_kept(self):
-        # Capitalised beyond position 0 → genuine proper noun
-        self.assertEqual(resolve_api._normalise_ai_keyword("couple near Eiffel Tower"), "couple near Eiffel Tower")
-        self.assertEqual(resolve_api._normalise_ai_keyword("view of Space Needle"), "view of Space Needle")
-
-    def test_single_word_kept_as_is(self):
-        # Can't distinguish proper noun from sentence-start for single words
-        self.assertEqual(resolve_api._normalise_ai_keyword("statue"), "statue")
-        self.assertEqual(resolve_api._normalise_ai_keyword("festival"), "festival")
+    def test_proper_noun_restored_from_existing_keywords(self):
+        kws = ["New York City", "Maria"]
+        # Single-word keyword "Maria" → restored by word match
+        self.assertEqual(
+            resolve_api._normalise_ai_keyword("maria sharapova", kws),
+            "Maria sharapova",
+        )
+        # Multi-word keyword "New York City" → restored only as full phrase
+        self.assertEqual(
+            resolve_api._normalise_ai_keyword("new york city skyline", kws),
+            "New York City skyline",
+        )
+        # Partial match ("new york" without "city") → stays lowercase
+        self.assertEqual(
+            resolve_api._normalise_ai_keyword("new york street food vendors", kws),
+            "new york street food vendors",
+        )
 
     def test_already_lowercase_unchanged(self):
         self.assertEqual(resolve_api._normalise_ai_keyword("rolling hills"), "rolling hills")
+        self.assertEqual(resolve_api._normalise_ai_keyword("concert crowd"), "concert crowd")
 
     def test_empty_string(self):
         self.assertEqual(resolve_api._normalise_ai_keyword(""), "")
