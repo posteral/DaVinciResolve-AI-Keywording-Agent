@@ -868,13 +868,10 @@
       const tag = document.activeElement && document.activeElement.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
 
-      const prevVisible = document.getElementById('prev-btn') &&
-                          document.getElementById('prev-btn').style.display !== 'none';
-
-      if ((e.key === 'ArrowLeft' || e.key === 'ArrowUp') && prevVisible) {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
         e.preventDefault();
         navigate('prev');
-      } else if ((e.key === 'ArrowRight' || e.key === 'ArrowDown') && prevVisible) {
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
         e.preventDefault();
         navigate('next');
       } else if (e.key === 's' || e.key === 'S') {
