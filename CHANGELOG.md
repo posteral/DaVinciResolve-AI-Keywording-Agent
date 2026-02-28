@@ -4,6 +4,46 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-02-28
+
+### Added
+
+- Free-text **Add keyword** input at the bottom of the clip view.
+  While typing, a dropdown shows up to 8 matching keywords from the
+  project (case-insensitive substring match, already-applied keywords
+  excluded). Arrow keys navigate the list; Enter or click a suggestion
+  commits the keyword via the existing Save flow; Escape dismisses.
+- `get_all_project_keywords(resolve)` in `resolve_api.py`: walks the
+  full Media Pool tree (root folder + all subfolders recursively) and
+  returns a sorted, deduplicated keyword list. No new pip dependencies.
+- `GET /api/keywords/catalog`: returns the project keyword catalog.
+  Built on the first request, then refreshed in the background after
+  every successful Save so newly added keywords appear immediately.
+
+### Performance
+
+- Keyword catalog rebuild runs in a background daemon thread that
+  acquires `_resolve_lock` with a 0.1 s timeout, yielding to
+  interactive requests if the lock is busy. Saves no longer block
+  waiting for the full project tree walk.
+- `_get_sorted_clips(folder)`: caches the date-sorted clip list keyed
+  by `(folder_name, clip_count)`. Consecutive Next/Prev presses in the
+  same folder reuse the cache instead of calling `GetClipProperty`
+  on every clip again.
+- Navigate route now gathers `file_path` and proximity suggestions
+  inside its single lock acquisition and returns them in the response.
+  The browser no longer fires separate `/api/clip/suggestions` and
+  `/api/clip/ai-suggestion` IPC requests after each navigation,
+  eliminating the post-navigate lock contention that caused 7–9 s delays.
+- `/api/clip/thumbnail` and `/api/clip/ai-suggestion` accept a `?path=`
+  query param; when the path is already known (from the navigate
+  response) they skip `_resolve_lock` entirely.
+
+### Fixed
+
+- `UnboundLocalError` for `_catalog_refresh_pending` in `set_keywords`
+  caused by missing `global` declaration.
+
 ## [0.7.6] - 2026-02-28
 
 ### Added
