@@ -1,6 +1,6 @@
-# DaVinci Resolve AI Keywording Agent
+# DaVinci Resolve Media Tagger
 
-Browser-based tool for reading, writing, and AI-assisted keywording of clips in DaVinci Resolve.
+Browser-based tool for tagging, keywording, and AI-assisted metadata editing of clips in DaVinci Resolve.
 
 ## Current Status
 
