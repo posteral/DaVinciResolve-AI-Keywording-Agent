@@ -768,12 +768,13 @@
         // loadFilmstrip also populates the thumbnail from the midpoint frame.
         loadFilmstrip(data.file_path);
         loadIdentities(data.file_path);
-        // Fetch proximity suggestions first, then kick off AI with them as context.
-        loadSuggestions().then(proxSuggestions => {
+        // Fetch proximity suggestions (instant cache hit after navigate), then
+        // kick off AI with them as context.
+        loadSuggestions(data.media_id).then(proxSuggestions => {
           loadAiSuggestion(data.file_path, proxSuggestions);
         });
       } else {
-        loadSuggestions();
+        loadSuggestions(data.media_id);
       }
       initKeywordInput();
       document.getElementById('prev-btn').style.display = 'inline-flex';
@@ -1039,9 +1040,12 @@
       _highlightOverlappingSuggestions();
     }
 
-    async function loadSuggestions() {
+    async function loadSuggestions(mediaId) {
       try {
-        const res = await fetch('/api/clip/suggestions');
+        const url = mediaId
+          ? '/api/clip/suggestions?' + new URLSearchParams({ media_id: mediaId })
+          : '/api/clip/suggestions';
+        const res = await fetch(url);
         if (!res.ok) return [];
         const data = await res.json();
         renderSuggestions(data.suggestions);

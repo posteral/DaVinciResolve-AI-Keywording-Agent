@@ -189,12 +189,25 @@ def _clip_date_key(clip: Any) -> tuple:
 #   keywords_by_id = {media_id: list[str]} — avoids re-calling GetMetadata
 _folder_cache: tuple | None = None
 
+# Proximity suggestions pre-computed for the last navigated/loaded clip.
+# Keyed by media_id so stale results from a previous clip are never served.
+# Populated by navigate_clip() and suggest_keywords(); read by get_cached_suggestions().
+_last_suggestions: tuple[str, list[str]] | None = None  # (media_id, suggestions)
+
+
+def get_cached_suggestions(media_id: str) -> list[str] | None:
+    """Return cached proximity suggestions for media_id, or None if stale/absent."""
+    if _last_suggestions is not None and _last_suggestions[0] == media_id:
+        return _last_suggestions[1]
+    return None
+
 
 def invalidate_folder_cache() -> None:
     """Force the next suggest_keywords/navigate call to rebuild the cache.
     Call this after writing keywords to any clip."""
-    global _folder_cache
+    global _folder_cache, _last_suggestions
     _folder_cache = None
+    _last_suggestions = None
 
 
 def _get_folder_cache(folder: Any) -> tuple[list, dict, dict]:
@@ -297,6 +310,9 @@ def navigate_clip(resolve: Any, direction: int) -> Any | None:
 
     new_item = clips[new_index]
     media_pool.SetSelectedClip(new_item)
+    # Pre-compute suggestions while the folder cache is warm so the subsequent
+    # /api/clip/suggestions request can be served instantly from _last_suggestions.
+    suggest_keywords(resolve, current_item=new_item)
     return new_item
 
 
@@ -379,6 +395,9 @@ def suggest_keywords(resolve: Any, current_item: Any = None) -> tuple[list[str],
 
     ranked = sorted(best_score.keys(), key=lambda k: -best_score[k])
     suggestions = [first_seen[k] for k in ranked[:10]]
+
+    global _last_suggestions
+    _last_suggestions = (current_id, suggestions)
 
     debug = {
         "clip": current_item.GetName(),

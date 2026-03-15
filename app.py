@@ -182,6 +182,12 @@ def clip_filmstrip():
 
 @app.route("/api/clip/suggestions")
 def clip_suggestions():
+    media_id = request.args.get("media_id", "").strip()
+    if media_id:
+        cached = resolve_api.get_cached_suggestions(media_id)
+        if cached is not None:
+            return jsonify({"suggestions": cached})
+
     try:
         with _resolve_lock:
             resolve = _get_resolve()
@@ -280,6 +286,7 @@ def navigate_clip():
             if item is None:
                 return jsonify({"error": "No more clips"}), 404
             name = item.GetName() or "<unnamed clip>"
+            media_id = item.GetMediaId()
             keywords = resolve_api.get_keywords(item)
             keywords_stored = resolve_api._normalize_keywords(
                 item.GetMetadata("Keywords") or item.GetClipProperty("Keywords") or ""
@@ -291,6 +298,7 @@ def navigate_clip():
     print(f"[navigate] clip={name!r}")
     return jsonify({
         "clip": name,
+        "media_id": media_id,
         "keywords": keywords,
         "unsorted": keywords_stored != keywords,
         "file_path": proxy_path,
