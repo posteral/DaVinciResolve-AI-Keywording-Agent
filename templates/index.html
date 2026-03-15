@@ -764,16 +764,16 @@
         // No proxy: show placeholder or fetch thumbnail via Resolve IPC fallback.
         loadThumbnail(data.file_path || null, data.no_proxy || false);
       }
-      if (data.suggestions !== undefined) {
-        renderSuggestions(data.suggestions);
-      } else {
-        loadSuggestions();
-      }
       if (!data.no_proxy && data.file_path) {
         // loadFilmstrip also populates the thumbnail from the midpoint frame.
         loadFilmstrip(data.file_path);
-        loadAiSuggestion(data.file_path, data.suggestions || []);
         loadIdentities(data.file_path);
+        // Fetch proximity suggestions first, then kick off AI with them as context.
+        loadSuggestions().then(proxSuggestions => {
+          loadAiSuggestion(data.file_path, proxSuggestions);
+        });
+      } else {
+        loadSuggestions();
       }
       initKeywordInput();
       document.getElementById('prev-btn').style.display = 'inline-flex';
@@ -1042,11 +1042,13 @@
     async function loadSuggestions() {
       try {
         const res = await fetch('/api/clip/suggestions');
-        if (!res.ok) return;
+        if (!res.ok) return [];
         const data = await res.json();
         renderSuggestions(data.suggestions);
+        return data.suggestions || [];
       } catch (_) {
         // suggestions are best-effort — fail silently
+        return [];
       }
     }
 

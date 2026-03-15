@@ -124,20 +124,17 @@ def clip():
                 item.GetMetadata("Keywords") or item.GetClipProperty("Keywords") or ""
             )
             proxy_path = item.GetClipProperty("Proxy Media Path") or ""
-            suggestions, debug = resolve_api.suggest_keywords(resolve, current_item=item)
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 
     unsorted = keywords_stored != keywords
     print(f"[clip] stored={keywords_stored!r} sorted={keywords!r} unsorted={unsorted}")
-    print(f"[suggestions] {debug}")
     return jsonify({
         "clip": name,
         "keywords": keywords,
         "unsorted": unsorted,
         "file_path": proxy_path,
         "no_proxy": not bool(proxy_path),
-        "suggestions": suggestions,
     })
 
 
@@ -288,18 +285,16 @@ def navigate_clip():
                 item.GetMetadata("Keywords") or item.GetClipProperty("Keywords") or ""
             )
             proxy_path = item.GetClipProperty("Proxy Media Path") or ""
-            suggestions, debug = resolve_api.suggest_keywords(resolve, current_item=item)
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 
-    print(f"[navigate] {debug}")
+    print(f"[navigate] clip={name!r}")
     return jsonify({
         "clip": name,
         "keywords": keywords,
         "unsorted": keywords_stored != keywords,
         "file_path": proxy_path,
         "no_proxy": not bool(proxy_path),
-        "suggestions": suggestions,
     })
 
 
